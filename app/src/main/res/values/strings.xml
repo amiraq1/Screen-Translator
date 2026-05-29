@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Nabd Screen Translate</string>
+    <string name="capture_notification_channel">خدمة التقاط الشاشة</string>
+    <string name="capture_notification_title">ترجمة الشاشة نشطة</string>
+    <string name="capture_notification_text">اضغط على الزر العائم لترجمة الشاشة</string>
+    <string name="floating_notification_title">الزر العائم نشط</string>
+    <string name="floating_notification_text">اضغط لإيقاف الخدمة</string>
+    <string name="overlay_permission_rationale">نحتاج هذه الصلاحية لعرض زر الترجمة العائم فوق التطبيقات الأخرى.</string>
+    <string name="capture_permission_rationale">نحتاج موافقتك لالتقاط الشاشة عند الضغط على زر الترجمة فقط.</string>
+    <string name="privacy_message">لا يتم حفظ صور الشاشة ولا إرسالها لأي خادم. تتم المعالجة على جهازك قدر الإمكان.</string>
+    <string name="no_text_found">لم يتم العثور على نص واضح في الشاشة.</string>
+    <string name="translation_success">تمت الترجمة بنجاح.</string>
+    <string name="translation_failed">تعذرت الترجمة. تأكد من تحميل نموذج اللغة وحاول مرة أخرى.</string>
+</resources>
