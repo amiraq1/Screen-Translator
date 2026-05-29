@@ -23,6 +23,7 @@ import com.ammar.nabdscreentranslate.NabdApp
 import com.ammar.nabdscreentranslate.capture.MediaProjectionHolder
 import com.ammar.nabdscreentranslate.capture.MediaProjectionRequestActivity
 import com.ammar.nabdscreentranslate.capture.ScreenCaptureManager
+import com.ammar.nabdscreentranslate.capture.ScreenCaptureService
 import com.ammar.nabdscreentranslate.data.AppDatabase
 import com.ammar.nabdscreentranslate.data.SettingsDataStore
 import com.ammar.nabdscreentranslate.domain.SaveTranslationUseCase
@@ -198,7 +199,11 @@ class FloatingButtonService : Service() {
             context = this,
             onGranted = {
                 Log.d(TAG, "MediaProjection granted - performing capture")
-                performCapture(pendingRegion)
+                val regionToCapture = pendingRegion
+                ScreenCaptureService.start(this)
+                handler.postDelayed({
+                    performCapture(regionToCapture)
+                }, 300)
                 pendingRegion = null
             },
             onDenied = {
@@ -310,6 +315,7 @@ class FloatingButtonService : Service() {
                     floatingView?.visibility = View.VISIBLE
                     floatingView?.setLoading(false)
                     isProcessing = false
+                    ScreenCaptureService.stop(this@FloatingButtonService)
                 }
             }
         }
