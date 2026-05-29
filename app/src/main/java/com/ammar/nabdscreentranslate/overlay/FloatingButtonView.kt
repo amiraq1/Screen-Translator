@@ -95,6 +95,14 @@ class FloatingButtonView(context: Context) : FrameLayout(context) {
         canvas.drawText("ت", x, y, paint)
     }
 
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        setMeasuredDimension(buttonSizePx, buttonSizePx)
+        progressBar?.measure(
+            MeasureSpec.makeMeasureSpec(buttonSizePx, MeasureSpec.AT_MOST),
+            MeasureSpec.makeMeasureSpec(buttonSizePx, MeasureSpec.AT_MOST)
+        )
+    }
+
     fun setLoading(loading: Boolean) {
         progressBar?.visibility = if (loading) View.VISIBLE else View.GONE
         invalidate()

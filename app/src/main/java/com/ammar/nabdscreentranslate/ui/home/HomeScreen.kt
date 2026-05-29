@@ -332,20 +332,12 @@ private fun QuickAction(
                 .padding(vertical = 16.dp, horizontal = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(22.dp),
-                    strokeWidth = 2.dp,
-                    color = Cyan400
-                )
-            } else {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = label,
-                    tint = Cyan400,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = if (isLoading) Amber400 else Cyan400,
+                modifier = Modifier.size(22.dp)
+            )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = label,

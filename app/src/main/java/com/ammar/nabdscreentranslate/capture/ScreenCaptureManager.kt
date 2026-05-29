@@ -29,6 +29,7 @@ class ScreenCaptureManager(private val context: Context) {
     private var virtualDisplay: VirtualDisplay? = null
     private var imageReader: ImageReader? = null
     private var projection: MediaProjection? = null
+    private var projectionCallback: MediaProjection.Callback? = null
 
     /**
      * Captures the current screen and returns a Bitmap.
@@ -87,8 +88,15 @@ class ScreenCaptureManager(private val context: Context) {
             )
             MediaProjectionHolder.setProjection(projection)
 
-            imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
             val handler = Handler(Looper.getMainLooper())
+            projectionCallback = object : MediaProjection.Callback() {
+                override fun onStop() {
+                    cleanup()
+                }
+            }
+            projection!!.registerCallback(projectionCallback!!, handler)
+
+            imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
 
             virtualDisplay = projection!!.createVirtualDisplay(
                 "NabdScreenCapture",
@@ -201,6 +209,8 @@ class ScreenCaptureManager(private val context: Context) {
         imageReader = null
         // Stop projection - on Android 14+ the token is single-use anyway
         try {
+            projectionCallback?.let { projection?.unregisterCallback(it) }
+            projectionCallback = null
             projection?.stop()
         } catch (e: Exception) {
             Log.w(TAG, "Error stopping projection: ${e.message}")
