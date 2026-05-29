@@ -14,6 +14,11 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 
+/**
+ * Manages the floating translation result overlay.
+ * Uses View-based UI since it's rendered via WindowManager outside of Compose.
+ * Design: Dark Liquid Lens - glass card with cyan accents.
+ */
 class TranslationOverlayManager(
     private val context: Context,
     private val windowManager: WindowManager
@@ -21,6 +26,17 @@ class TranslationOverlayManager(
 
     private var overlayView: View? = null
     private var isVisible = false
+
+    // Colors matching Dark Liquid Lens theme
+    private val colorBg = 0xF00F1115.toInt()        // Ink800 with high alpha
+    private val colorBorder = 0xFF2E3442.toInt()     // GlassBorder
+    private val colorCyan = 0xFF22D3EE.toInt()       // Cyan400
+    private val colorSuccess = 0xFF4ADE80.toInt()    // Success400
+    private val colorError = 0xFFF87171.toInt()      // Error400
+    private val colorTextWhite = 0xFFF1F5F9.toInt()  // TextWhite
+    private val colorTextMuted = 0xFF94A3B8.toInt()  // TextMuted
+    private val colorTextDim = 0xFF64748B.toInt()    // TextDim
+    private val colorGlass = 0xFF1A1E28.toInt()      // Glass800
 
     @SuppressLint("InflateParams")
     fun showTranslation(
@@ -31,7 +47,7 @@ class TranslationOverlayManager(
         onClose: () -> Unit
     ) {
         Log.d("NabdScreenTranslate", "Showing translation overlay")
-        hide() // Remove existing overlay
+        hide()
 
         val view = createTranslationView(originalText, translatedText, onCopy, onSave, onClose)
         overlayView = view
@@ -45,11 +61,15 @@ class TranslationOverlayManager(
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-            y = 100
+            y = 80
         }
 
-        windowManager.addView(view, params)
-        isVisible = true
+        try {
+            windowManager.addView(view, params)
+            isVisible = true
+        } catch (e: Exception) {
+            Log.e("NabdScreenTranslate", "Failed to show overlay: ${e.message}")
+        }
     }
 
     fun showError(message: String) {
@@ -67,14 +87,16 @@ class TranslationOverlayManager(
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-            y = 100
+            y = 80
         }
 
-        windowManager.addView(view, params)
-        isVisible = true
-
-        // Auto-dismiss error after 3 seconds
-        view.postDelayed({ hide() }, 3000)
+        try {
+            windowManager.addView(view, params)
+            isVisible = true
+            view.postDelayed({ hide() }, 4000)
+        } catch (e: Exception) {
+            Log.e("NabdScreenTranslate", "Failed to show error overlay: ${e.message}")
+        }
     }
 
     fun hide() {
@@ -107,227 +129,177 @@ class TranslationOverlayManager(
         onSave: () -> Unit,
         onClose: () -> Unit
     ): View {
-        val density = context.resources.displayMetrics.density
-        val padding = (16 * density).toInt()
-        val smallPadding = (8 * density).toInt()
-        val cornerRadius = 16 * density
+        val d = context.resources.displayMetrics.density
+        val pad = (16 * d).toInt()
+        val padSm = (10 * d).toInt()
+        val radius = 16 * d
 
-        // Main container
         val container = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(padding, padding, padding, padding)
+            setPadding(pad, pad, pad, pad)
             layoutDirection = View.LAYOUT_DIRECTION_RTL
-
-            // Background with rounded corners
             val bg = android.graphics.drawable.GradientDrawable().apply {
-                setColor(0xF0161B22.toInt()) // Dark surface with high opacity
-                setCornerRadii(floatArrayOf(
-                    cornerRadius, cornerRadius, cornerRadius, cornerRadius,
-                    0f, 0f, 0f, 0f
-                ))
-                setStroke((1 * density).toInt(), 0xFF30363D.toInt())
+                setColor(colorBg)
+                setCornerRadii(floatArrayOf(radius, radius, radius, radius, 0f, 0f, 0f, 0f))
+                setStroke((1 * d).toInt(), colorBorder)
             }
             background = bg
-            elevation = 8 * density
+            elevation = 12 * d
         }
 
-        // Header with close button
+        // Header
         val header = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         }
 
-        val titleText = TextView(context).apply {
-            text = "تمت الترجمة بنجاح ✓"
-            setTextColor(0xFF3FB950.toInt()) // AccentGreen
-            textSize = 14f
+        header.addView(TextView(context).apply {
+            text = "تمت الترجمة ✓"
+            setTextColor(colorSuccess)
+            textSize = 13f
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        }
-        header.addView(titleText)
+        })
 
-        val closeBtn = TextView(context).apply {
+        header.addView(TextView(context).apply {
             text = "✕"
-            setTextColor(0xFF8B949E.toInt())
+            setTextColor(colorTextDim)
             textSize = 18f
-            setPadding(smallPadding, 0, smallPadding, 0)
-            setOnClickListener {
-                onClose()
-            }
-        }
-        header.addView(closeBtn)
+            setPadding(padSm, 0, padSm, 0)
+            setOnClickListener { onClose() }
+        })
         container.addView(header)
 
         // Divider
-        val divider = View(context).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                (1 * density).toInt()
-            ).apply {
-                topMargin = smallPadding
-                bottomMargin = smallPadding
+        container.addView(View(context).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (1 * d).toInt()).apply {
+                topMargin = padSm; bottomMargin = padSm
             }
-            setBackgroundColor(0xFF30363D.toInt())
-        }
-        container.addView(divider)
+            setBackgroundColor(colorBorder)
+        })
 
-        // Scrollable content
-        val scrollView = ScrollView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = smallPadding
+        // Content scroll
+        val scroll = ScrollView(context).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = (4 * d).toInt()
             }
             minimumHeight = 0
         }
 
-        val contentLayout = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-        }
+        val content = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
 
-        // Original text (collapsed)
-        if (originalText.length <= 200) {
-            val originalLabel = TextView(context).apply {
-                text = "النص الأصلي:"
-                setTextColor(0xFF8B949E.toInt())
-                textSize = 11f
-            }
-            contentLayout.addView(originalLabel)
-
-            val originalTextView = TextView(context).apply {
+        // Original text (show if short)
+        if (originalText.length <= 150) {
+            content.addView(TextView(context).apply {
+                text = "النص الأصلي"
+                setTextColor(colorTextDim)
+                textSize = 10f
+            })
+            content.addView(TextView(context).apply {
                 text = originalText
-                setTextColor(0xFFB0B8C4.toInt())
+                setTextColor(colorTextMuted)
                 textSize = 12f
-                maxLines = 3
-                setPadding(0, (4 * density).toInt(), 0, smallPadding)
-            }
-            contentLayout.addView(originalTextView)
+                maxLines = 2
+                setPadding(0, (3 * d).toInt(), 0, padSm)
+            })
         }
 
-        // Translated text
-        val translatedLabel = TextView(context).apply {
-            text = "الترجمة:"
-            setTextColor(0xFF58A6FF.toInt()) // PrimaryBlue
-            textSize = 11f
-        }
-        contentLayout.addView(translatedLabel)
-
-        val translatedTextView = TextView(context).apply {
+        // Translation
+        content.addView(TextView(context).apply {
+            text = "الترجمة"
+            setTextColor(colorCyan)
+            textSize = 10f
+        })
+        content.addView(TextView(context).apply {
             text = translatedText
-            setTextColor(0xFFF0F6FC.toInt()) // TextPrimary
+            setTextColor(colorTextWhite)
             textSize = 15f
-            setPadding(0, (4 * density).toInt(), 0, 0)
-            setLineSpacing(4 * density, 1f)
-        }
-        contentLayout.addView(translatedTextView)
+            setPadding(0, (4 * d).toInt(), 0, 0)
+            setLineSpacing(4 * d, 1f)
+        })
 
-        scrollView.addView(contentLayout)
-        container.addView(scrollView)
+        scroll.addView(content)
+        container.addView(scroll)
 
-        // Action buttons
-        val buttonsLayout = LinearLayout(context).apply {
+        // Buttons
+        val buttons = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = (12 * density).toInt()
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = (12 * d).toInt()
             }
         }
 
-        val copyBtn = createActionButton("نسخ", 0xFF58A6FF.toInt()) {
-            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            val clip = ClipData.newPlainText("translation", translatedText)
-            clipboard.setPrimaryClip(clip)
+        buttons.addView(makeBtn("نسخ", colorCyan, d) {
+            val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            cb.setPrimaryClip(ClipData.newPlainText("translation", translatedText))
             Toast.makeText(context, "تم النسخ", Toast.LENGTH_SHORT).show()
             onCopy()
-        }
-        buttonsLayout.addView(copyBtn)
+        })
 
-        val saveBtn = createActionButton("حفظ", 0xFF3FB950.toInt()) {
+        buttons.addView(makeBtn("حفظ", colorSuccess, d) {
             onSave()
             Toast.makeText(context, "تم الحفظ", Toast.LENGTH_SHORT).show()
-        }
-        buttonsLayout.addView(saveBtn)
+        })
 
-        container.addView(buttonsLayout)
-
+        container.addView(buttons)
         return container
     }
 
     private fun createErrorView(message: String): View {
-        val density = context.resources.displayMetrics.density
-        val padding = (16 * density).toInt()
+        val d = context.resources.displayMetrics.density
+        val pad = (14 * d).toInt()
 
-        val container = LinearLayout(context).apply {
+        return LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
-            setPadding(padding, padding, padding, padding)
+            setPadding(pad, pad, pad, pad)
             gravity = Gravity.CENTER_VERTICAL
             layoutDirection = View.LAYOUT_DIRECTION_RTL
-
             val bg = android.graphics.drawable.GradientDrawable().apply {
-                setColor(0xF0161B22.toInt())
-                cornerRadius = 12 * density
-                setStroke((1 * density).toInt(), 0xFFF85149.toInt())
+                setColor(colorBg)
+                cornerRadius = 12 * d
+                setStroke((1 * d).toInt(), colorError)
             }
             background = bg
-            elevation = 8 * density
-        }
+            elevation = 12 * d
 
-        val errorIcon = TextView(context).apply {
-            text = "⚠️"
-            textSize = 18f
-            setPadding(0, 0, (8 * density).toInt(), 0)
-        }
-        container.addView(errorIcon)
+            addView(TextView(context).apply {
+                text = "⚠"
+                textSize = 16f
+                setPadding(0, 0, (8 * d).toInt(), 0)
+            })
 
-        val errorText = TextView(context).apply {
-            text = message
-            setTextColor(0xFFF0F6FC.toInt())
-            textSize = 14f
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        }
-        container.addView(errorText)
+            addView(TextView(context).apply {
+                text = message
+                setTextColor(colorTextWhite)
+                textSize = 13f
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            })
 
-        val closeBtn = TextView(context).apply {
-            text = "✕"
-            setTextColor(0xFF8B949E.toInt())
-            textSize = 16f
-            setPadding((8 * density).toInt(), 0, 0, 0)
-            setOnClickListener { hide() }
+            addView(TextView(context).apply {
+                text = "✕"
+                setTextColor(colorTextDim)
+                textSize = 16f
+                setPadding((8 * d).toInt(), 0, 0, 0)
+                setOnClickListener { hide() }
+            })
         }
-        container.addView(closeBtn)
-
-        return container
     }
 
-    private fun createActionButton(text: String, color: Int, onClick: () -> Unit): TextView {
-        val density = context.resources.displayMetrics.density
+    private fun makeBtn(text: String, color: Int, d: Float, onClick: () -> Unit): TextView {
         return TextView(context).apply {
             this.text = text
             setTextColor(color)
-            textSize = 13f
-            setPadding(
-                (12 * density).toInt(),
-                (8 * density).toInt(),
-                (12 * density).toInt(),
-                (8 * density).toInt()
-            )
+            textSize = 12f
+            setPadding((14 * d).toInt(), (8 * d).toInt(), (14 * d).toInt(), (8 * d).toInt())
             val bg = android.graphics.drawable.GradientDrawable().apply {
-                setColor(0x20FFFFFF)
-                cornerRadius = 8 * density
+                setColor(0x18FFFFFF)
+                cornerRadius = 8 * d
+                setStroke((1 * d).toInt(), (color and 0x00FFFFFF) or 0x30000000)
             }
             background = bg
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                marginEnd = (8 * density).toInt()
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                marginEnd = (8 * d).toInt()
             }
             setOnClickListener { onClick() }
         }

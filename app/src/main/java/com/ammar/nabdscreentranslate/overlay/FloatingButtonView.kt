@@ -14,6 +14,10 @@ import android.widget.FrameLayout
 import android.widget.ProgressBar
 import kotlin.math.abs
 
+/**
+ * Floating action button rendered as a View (not Compose) for WindowManager overlay.
+ * Design: Dark Liquid Lens - dark circle with cyan border and translate icon.
+ */
 @SuppressLint("ViewConstructor")
 class FloatingButtonView(context: Context) : FrameLayout(context) {
 
@@ -21,8 +25,9 @@ class FloatingButtonView(context: Context) : FrameLayout(context) {
         SINGLE_TAP, LONG_PRESS, DOUBLE_TAP
     }
 
-    private val BUTTON_SIZE = 56 // dp
+    private val BUTTON_SIZE_DP = 52
     private val buttonSizePx: Int
+    private val density: Float = context.resources.displayMetrics.density
 
     private var progressBar: ProgressBar? = null
     private val handler = Handler(Looper.getMainLooper())
@@ -33,32 +38,34 @@ class FloatingButtonView(context: Context) : FrameLayout(context) {
     private var initialTouchX = 0f
     private var initialTouchY = 0f
     private var isDragging = false
-    private val CLICK_THRESHOLD = 10 // pixels
+    private val CLICK_THRESHOLD = 10
 
     // Long press
     private var longPressRunnable: Runnable? = null
     private val LONG_PRESS_TIMEOUT = 500L
     private var isLongPressTriggered = false
 
+    // Colors - Dark Liquid Lens
+    private val colorBg = 0xFF0F1115.toInt()       // Ink800
+    private val colorBorder = 0xFF22D3EE.toInt()   // Cyan400
+    private val colorIcon = 0xFF22D3EE.toInt()     // Cyan400
+
     init {
-        val density = context.resources.displayMetrics.density
-        buttonSizePx = (BUTTON_SIZE * density).toInt()
+        buttonSizePx = (BUTTON_SIZE_DP * density).toInt()
 
-        // Create circular button background
-        val background = GradientDrawable().apply {
+        val bg = GradientDrawable().apply {
             shape = GradientDrawable.OVAL
-            setColor(0xFF6366F1.toInt()) // PrimaryGradientStart
-            setStroke((2 * density).toInt(), 0xFF8B5CF6.toInt())
+            setColor(colorBg)
+            setStroke((2 * density).toInt(), colorBorder)
         }
+        setBackground(bg)
+        elevation = 10 * density
 
-        setBackground(background)
-        elevation = 8 * density
-
-        // Create a simple progress bar for loading state
+        // Progress bar for loading state
         progressBar = ProgressBar(context).apply {
             layoutParams = LayoutParams(
-                (24 * density).toInt(),
-                (24 * density).toInt()
+                (20 * density).toInt(),
+                (20 * density).toInt()
             ).apply {
                 gravity = android.view.Gravity.CENTER
             }
@@ -68,25 +75,24 @@ class FloatingButtonView(context: Context) : FrameLayout(context) {
         addView(progressBar)
 
         layoutParams = LayoutParams(buttonSizePx, buttonSizePx)
+        setWillNotDraw(false)
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-
         if (progressBar?.visibility == View.VISIBLE) return
 
-        // Draw translate icon (simple "T" text)
+        // Draw translate icon "ت" centered
         val paint = Paint().apply {
-            color = 0xFFFFFFFF.toInt()
-            textSize = buttonSizePx * 0.4f
+            color = colorIcon
+            textSize = buttonSizePx * 0.38f
             textAlign = Paint.Align.CENTER
             isFakeBoldText = true
             isAntiAlias = true
         }
-
-        val xPos = width / 2f
-        val yPos = (height / 2f) - ((paint.descent() + paint.ascent()) / 2f)
-        canvas.drawText("ت", xPos, yPos, paint)
+        val x = width / 2f
+        val y = (height / 2f) - ((paint.descent() + paint.ascent()) / 2f)
+        canvas.drawText("ت", x, y, paint)
     }
 
     fun setLoading(loading: Boolean) {
@@ -110,7 +116,6 @@ class FloatingButtonView(context: Context) : FrameLayout(context) {
                     initialTouchX = event.rawX
                     initialTouchY = event.rawY
 
-                    // Start long press timer
                     longPressRunnable = Runnable {
                         if (!isDragging) {
                             isLongPressTriggered = true
@@ -132,13 +137,14 @@ class FloatingButtonView(context: Context) : FrameLayout(context) {
                     if (isDragging) {
                         params.x = initialX + dx.toInt()
                         params.y = initialY + dy.toInt()
-                        windowManager.updateViewLayout(this, params)
+                        try {
+                            windowManager.updateViewLayout(this, params)
+                        } catch (_: Exception) {}
                     }
                     true
                 }
                 MotionEvent.ACTION_UP -> {
                     longPressRunnable?.let { handler.removeCallbacks(it) }
-
                     if (!isDragging && !isLongPressTriggered) {
                         onEvent(EventType.SINGLE_TAP)
                     }

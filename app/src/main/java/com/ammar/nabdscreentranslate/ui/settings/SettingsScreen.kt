@@ -1,18 +1,19 @@
 package com.ammar.nabdscreentranslate.ui.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
@@ -34,31 +35,27 @@ fun SettingsScreen(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = {
-                        Text("الإعدادات", fontWeight = FontWeight.Bold)
-                    },
+                    title = { Text("الإعدادات", fontWeight = FontWeight.Bold, color = TextWhite) },
                     navigationIcon = {
                         IconButton(onClick = onNavigateBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "رجوع")
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, "رجوع", tint = TextLight)
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background
-                    )
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Ink900)
                 )
-            }
+            },
+            containerColor = Ink900
         ) { padding ->
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .background(MaterialTheme.colorScheme.background)
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp)
             ) {
-                // Appearance Section
-                SettingsSection(title = "المظهر") {
-                    SettingsToggleItem(
+                // ─── Appearance ───────────────────────────────────────
+                SettingsSection(title = "المظهر", icon = Icons.Outlined.Palette) {
+                    SettingsToggle(
                         icon = Icons.Outlined.DarkMode,
                         title = "الوضع الداكن",
                         subtitle = "تفعيل المظهر الداكن",
@@ -67,62 +64,43 @@ fun SettingsScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // Overlay Section
-                SettingsSection(title = "نافذة الترجمة") {
+                // ─── Translation Overlay ─────────────────────────────
+                SettingsSection(title = "نافذة الترجمة", icon = Icons.Outlined.Layers) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                Icons.Outlined.Opacity,
-                                contentDescription = null,
-                                tint = PrimaryBlue,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = "شفافية النافذة",
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Text(
-                                text = "${(uiState.overlayOpacity * 100).toInt()}%",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Icon(Icons.Outlined.Opacity, null, tint = Cyan400, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text("شفافية النافذة", style = MaterialTheme.typography.bodyMedium, color = TextLight, modifier = Modifier.weight(1f))
+                            Text("${(uiState.overlayOpacity * 100).toInt()}%", style = MaterialTheme.typography.labelMedium, color = TextDim)
                         }
                         Slider(
                             value = uiState.overlayOpacity,
                             onValueChange = onOverlayOpacityChanged,
                             valueRange = 0.5f..1f,
-                            modifier = Modifier.padding(top = 8.dp),
-                            colors = SliderDefaults.colors(
-                                thumbColor = PrimaryBlue,
-                                activeTrackColor = PrimaryBlue
-                            )
+                            modifier = Modifier.padding(top = 4.dp),
+                            colors = SliderDefaults.colors(thumbColor = Cyan400, activeTrackColor = Cyan400, inactiveTrackColor = Glass600)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // Behavior Section
-                SettingsSection(title = "السلوك") {
-                    SettingsToggleItem(
+                // ─── Behavior ────────────────────────────────────────
+                SettingsSection(title = "السلوك", icon = Icons.Outlined.Tune) {
+                    SettingsToggle(
                         icon = Icons.Outlined.Save,
                         title = "حفظ السجل",
-                        subtitle = "حفظ الترجمات تلقائيًا في السجل",
+                        subtitle = "حفظ الترجمات تلقائيًا",
                         checked = uiState.saveHistory,
                         onCheckedChange = onSaveHistoryChanged
                     )
-                    Divider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
-                    )
-                    SettingsToggleItem(
+                    Divider(color = GlassBorder.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = 16.dp))
+                    SettingsToggle(
                         icon = Icons.Outlined.Vibration,
                         title = "اهتزاز عند الترجمة",
                         subtitle = "اهتزاز خفيف عند إتمام الترجمة",
@@ -131,41 +109,41 @@ fun SettingsScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // Privacy Section
-                SettingsSection(title = "الخصوصية") {
+                // ─── Privacy ─────────────────────────────────────────
+                SettingsSection(title = "الخصوصية", icon = Icons.Outlined.Shield) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Outlined.Shield,
-                                contentDescription = null,
-                                tint = AccentGreen,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = "سياسة الخصوصية",
-                                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "• لا يتم حفظ صور الشاشة\n• لا يتم إرسال البيانات لأي خادم\n• تتم المعالجة على جهازك فقط\n• لا يتم استخدام خدمات إمكانية الوصول",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
+                        val items = listOf(
+                            "لا يتم حفظ صور الشاشة",
+                            "لا يتم إرسال البيانات لأي خادم",
+                            "تتم المعالجة على جهازك فقط",
+                            "لا يتم استخدام خدمات إمكانية الوصول"
                         )
+                        items.forEach { item ->
+                            Row(
+                                modifier = Modifier.padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(5.dp)
+                                        .clip(RoundedCornerShape(50))
+                                        .background(Success400)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(item, style = MaterialTheme.typography.bodySmall, color = TextMuted)
+                            }
+                        }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // App Info
                 Text(
                     text = "Nabd Screen Translate v1.0.0",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextDim,
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 )
 
@@ -176,24 +154,31 @@ fun SettingsScreen(
 }
 
 @Composable
-fun SettingsSection(
+private fun SettingsSection(
     title: String,
+    icon: ImageVector,
     content: @Composable () -> Unit
 ) {
     Column {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-            color = PrimaryBlue,
-            modifier = Modifier.padding(bottom = 8.dp, start = 4.dp)
-        )
+        Row(
+            modifier = Modifier.padding(bottom = 8.dp, start = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(icon, null, tint = Cyan400, modifier = Modifier.size(14.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = Cyan400
+            )
+        }
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, GlassBorder.copy(alpha = 0.4f), RoundedCornerShape(12.dp)),
             shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            colors = CardDefaults.cardColors(containerColor = Glass800.copy(alpha = 0.6f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             content()
         }
@@ -201,7 +186,7 @@ fun SettingsSection(
 }
 
 @Composable
-fun SettingsToggleItem(
+private fun SettingsToggle(
     icon: ImageVector,
     title: String,
     subtitle: String,
@@ -211,33 +196,23 @@ fun SettingsToggleItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = PrimaryBlue,
-            modifier = Modifier.size(24.dp)
-        )
+        Icon(icon, null, tint = Cyan400, modifier = Modifier.size(20.dp))
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Text(title, style = MaterialTheme.typography.bodyMedium, color = TextLight)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = TextDim)
         }
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = MaterialTheme.colorScheme.surface,
-                checkedTrackColor = PrimaryBlue
+                checkedThumbColor = Ink900,
+                checkedTrackColor = Cyan400,
+                uncheckedThumbColor = TextDim,
+                uncheckedTrackColor = Glass600
             )
         )
     }
