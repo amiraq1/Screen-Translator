@@ -1,6 +1,10 @@
 package com.ammar.nabdscreentranslate.core.utils
 
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
+import android.graphics.Paint
 import android.graphics.Rect
 
 object BitmapUtils {
@@ -25,6 +29,59 @@ object BitmapUtils {
         val newHeight = (bitmap.height * scale).toInt()
 
         return Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
+    }
+
+    /**
+     * Prepare bitmap specifically for Arabic OCR (Tesseract).
+     * Applies: grayscale + contrast boost + upscale for small text.
+     * Tesseract works best with high-contrast grayscale images at ~300 DPI equivalent.
+     */
+    fun prepareForArabicOcr(bitmap: Bitmap): Bitmap {
+        // Step 1: Upscale if text might be too small
+        // Tesseract needs ~30px character height minimum for Arabic
+        val scaleFactor = when {
+            bitmap.height < 800 -> 2.0f
+            bitmap.height < 1200 -> 1.5f
+            else -> 1.0f
+        }
+
+        val scaled = if (scaleFactor > 1.0f) {
+            Bitmap.createScaledBitmap(
+                bitmap,
+                (bitmap.width * scaleFactor).toInt(),
+                (bitmap.height * scaleFactor).toInt(),
+                true
+            )
+        } else {
+            bitmap
+        }
+
+        // Step 2: Convert to grayscale with contrast enhancement
+        val grayscale = Bitmap.createBitmap(scaled.width, scaled.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(grayscale)
+        val paint = Paint()
+
+        // Grayscale + contrast boost (1.5x contrast, slight brightness reduction)
+        val contrastMatrix = ColorMatrix().apply {
+            setSaturation(0f) // Grayscale
+        }
+        val contrastBoost = ColorMatrix(floatArrayOf(
+            1.4f, 0f, 0f, 0f, -30f,  // Red
+            0f, 1.4f, 0f, 0f, -30f,  // Green
+            0f, 0f, 1.4f, 0f, -30f,  // Blue
+            0f, 0f, 0f, 1f, 0f       // Alpha
+        ))
+        contrastMatrix.postConcat(contrastBoost)
+
+        paint.colorFilter = ColorMatrixColorFilter(contrastMatrix)
+        canvas.drawBitmap(scaled, 0f, 0f, paint)
+
+        // Recycle intermediate if we created it
+        if (scaled !== bitmap) {
+            scaled.recycle()
+        }
+
+        return grayscale
     }
 
     /**

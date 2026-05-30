@@ -64,6 +64,7 @@ class HybridOcrEngine(context: Context) : OcrEngine {
      * Hybrid strategy for "auto" mode:
      * 1. Try ML Kit first (fast, good for Latin scripts)
      * 2. If result is empty or very short, try Arabic OCR as fallback
+     * 3. Check if ML Kit result contains Arabic characters — if so, prefer Arabic engine
      */
     private suspend fun recognizeHybrid(bitmap: Bitmap): List<TextBlockResult> {
         // Step 1: Try ML Kit
@@ -75,15 +76,25 @@ class HybridOcrEngine(context: Context) : OcrEngine {
         }
 
         val totalChars = mlKitResults.sumOf { it.text.length }
+        val mlKitText = mlKitResults.joinToString(" ") { it.text }
 
-        // If ML Kit found reasonable text, use it
-        if (mlKitResults.isNotEmpty() && totalChars >= MIN_CHARS_THRESHOLD) {
+        // Check if ML Kit detected Arabic characters (it can't read them but may detect blocks)
+        val hasArabicChars = mlKitText.any { it in '\u0600'..'\u06FF' || it in '\u0750'..'\u077F' }
+
+        // If ML Kit found reasonable non-Arabic text, use it
+        if (mlKitResults.isNotEmpty() && totalChars >= MIN_CHARS_THRESHOLD && !hasArabicChars) {
             Log.d(TAG, "Hybrid: MLKit found sufficient text ($totalChars chars, ${mlKitResults.size} blocks)")
             return mlKitResults
         }
 
-        // Step 2: ML Kit found little/no text — try Arabic OCR
-        Log.d(TAG, "Hybrid: MLKit found insufficient text ($totalChars chars), fallback to Arabic OCR")
+        // Step 2: ML Kit found little/no text or detected Arabic — try Arabic OCR
+        val reason = when {
+            hasArabicChars -> "detected Arabic characters"
+            totalChars < MIN_CHARS_THRESHOLD -> "insufficient text ($totalChars chars)"
+            else -> "empty result"
+        }
+        Log.d(TAG, "Hybrid: Fallback to Arabic OCR — $reason")
+
         val arabicResults = try {
             arabicEngine.recognizeText(bitmap)
         } catch (e: Exception) {
