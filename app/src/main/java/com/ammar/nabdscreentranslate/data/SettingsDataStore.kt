@@ -23,6 +23,7 @@ class SettingsDataStore(private val context: Context) {
         val DARK_MODE = booleanPreferencesKey("dark_mode")
         val VIBRATE_ON_TRANSLATE = booleanPreferencesKey("vibrate_on_translate")
         val LIGHT_BG_BEHIND_TRANSLATION = booleanPreferencesKey("light_bg_behind_translation")
+        val DISPLAY_MODE = stringPreferencesKey("translation_display_mode")
     }
 
     val sourceLang: Flow<String> = context.dataStore.data.map { it[Keys.SOURCE_LANG] ?: "auto" }
@@ -35,6 +36,13 @@ class SettingsDataStore(private val context: Context) {
     /** Whether to draw a faint translucent background behind in-place translated text. Default OFF (cardless). */
     val lightBackgroundBehindTranslation: Flow<Boolean> =
         context.dataStore.data.map { it[Keys.LIGHT_BG_BEHIND_TRANSLATION] ?: false }
+
+    /**
+     * Translation display mode: "overlay" (inline bubbles), "sheet" (bottom panel),
+     * or "both". Default "overlay".
+     */
+    val displayMode: Flow<String> =
+        context.dataStore.data.map { it[Keys.DISPLAY_MODE] ?: DISPLAY_MODE_OVERLAY }
 
     suspend fun setSourceLang(lang: String) {
         context.dataStore.edit { it[Keys.SOURCE_LANG] = lang }
@@ -62,5 +70,15 @@ class SettingsDataStore(private val context: Context) {
 
     suspend fun setLightBackgroundBehindTranslation(enabled: Boolean) {
         context.dataStore.edit { it[Keys.LIGHT_BG_BEHIND_TRANSLATION] = enabled }
+    }
+
+    suspend fun setDisplayMode(mode: String) {
+        context.dataStore.edit { it[Keys.DISPLAY_MODE] = mode }
+    }
+
+    companion object {
+        const val DISPLAY_MODE_OVERLAY = "overlay"
+        const val DISPLAY_MODE_SHEET = "sheet"
+        const val DISPLAY_MODE_BOTH = "both"
     }
 }

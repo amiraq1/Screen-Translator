@@ -243,8 +243,8 @@ class FloatingButtonService : Service() {
                 // Step 2: Read settings
                 val sourceLang = settingsDataStore.sourceLang.first()
                 val targetLang = settingsDataStore.targetLang.first()
-                val lightBgBehindTranslation = settingsDataStore.lightBackgroundBehindTranslation.first()
-                Log.d(TAG, "Languages - source=$sourceLang, target=$targetLang")
+                val displayMode = settingsDataStore.displayMode.first()
+                Log.d(TAG, "Languages - source=$sourceLang, target=$targetLang, displayMode=$displayMode")
 
                 // Step 3: Set OCR engine language for hybrid selection
                 ocrEngine.setSourceLanguage(sourceLang)
@@ -273,42 +273,52 @@ class FloatingButtonService : Service() {
                             // Hide any existing overlay before showing new one
                             translationOverlayManager?.hide()
 
-                            if (inPlaceResult.hasPositions) {
-                                // Cardless in-place: draw translations over each block
-                                translationOverlayManager?.showInPlaceTranslation(
-                                    blocks = inPlaceResult.blocks,
-                                    lightBackground = lightBgBehindTranslation,
-                                    onCopy = { /* handled internally */ },
-                                    onSave = {
-                                        serviceScope.launch {
-                                            saveToHistory(
-                                                inPlaceResult.originalText,
-                                                inPlaceResult.translatedText,
-                                                sourceLang,
-                                                targetLang
-                                            )
-                                        }
-                                    },
-                                    onClose = { translationOverlayManager?.hide() }
-                                )
-                            } else {
-                                // No position info (e.g. Arabic/Tesseract) → fall back to bottom card
-                                translationOverlayManager?.showTranslation(
-                                    originalText = inPlaceResult.originalText,
-                                    translatedText = inPlaceResult.translatedText,
-                                    onCopy = { /* handled internally */ },
-                                    onSave = {
-                                        serviceScope.launch {
-                                            saveToHistory(
-                                                inPlaceResult.originalText,
-                                                inPlaceResult.translatedText,
-                                                sourceLang,
-                                                targetLang
-                                            )
-                                        }
-                                    },
-                                    onClose = { translationOverlayManager?.hide() }
-                                )
+                            val saveAction: () -> Unit = {
+                                serviceScope.launch {
+                                    saveToHistory(
+                                        inPlaceResult.originalText,
+                                        inPlaceResult.translatedText,
+                                        sourceLang,
+                                        targetLang
+                                    )
+                                }
+                            }
+                            val closeAction: () -> Unit = { translationOverlayManager?.hide() }
+
+                            // Decide presentation based on user display-mode setting.
+                            // Inline overlay needs bounding boxes; if absent (e.g. Arabic/
+                            // Tesseract), force the bottom sheet so text stays readable.
+                            val wantOverlay = displayMode == SettingsDataStore.DISPLAY_MODE_OVERLAY ||
+                                    displayMode == SettingsDataStore.DISPLAY_MODE_BOTH
+                            val wantSheet = displayMode == SettingsDataStore.DISPLAY_MODE_SHEET ||
+                                    displayMode == SettingsDataStore.DISPLAY_MODE_BOTH
+
+                            when {
+                                inPlaceResult.hasPositions && wantOverlay -> {
+                                    translationOverlayManager?.showInPlaceTranslation(
+                                        blocks = inPlaceResult.blocks,
+                                        onCopy = { },
+                                        onSave = saveAction,
+                                        onClose = closeAction
+                                    )
+                                    if (wantSheet) {
+                                        translationOverlayManager?.showBottomSheetTranslation(
+                                            blocks = inPlaceResult.blocks,
+                                            onCopy = { },
+                                            onSave = saveAction,
+                                            onClose = closeAction
+                                        )
+                                    }
+                                }
+                                else -> {
+                                    // Sheet-only mode, or no bounding boxes available
+                                    translationOverlayManager?.showBottomSheetTranslation(
+                                        blocks = inPlaceResult.blocks,
+                                        onCopy = { },
+                                        onSave = saveAction,
+                                        onClose = closeAction
+                                    )
+                                }
                             }
 
                             // Auto-save to history

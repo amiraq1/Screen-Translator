@@ -29,12 +29,13 @@ class TranslationOverlayManager(
     private var overlayView: View? = null
     private var inPlaceView: View? = null
     private var inPlaceCloseButton: View? = null
+    private var bottomSheetView: View? = null
     private var isVisible = false
 
     // Colors matching Ember on Graphite theme
-    private val colorBg = 0xF0131110.toInt()        // Ink800 (warm) high alpha
+    private val colorBg = 0xF2151517.toInt()         // opaque dark graphite (~95%)
     private val colorBorder = 0xFF3A322C.toInt()     // GlassBorder
-    private val colorCyan = 0xFFFF7000.toInt()       // Ember500 (primary accent)
+    private val colorAccent = 0xFFFF7000.toInt()     // Ember500 (primary accent — highlights only)
     private val colorSuccess = 0xFF4ADE80.toInt()    // Success400
     private val colorError = 0xFFF87171.toInt()      // Error400
     private val colorTextWhite = 0xFFFBF7F4.toInt()  // TextWhite (warm)
@@ -45,18 +46,17 @@ class TranslationOverlayManager(
     @SuppressLint("InflateParams")
     fun showInPlaceTranslation(
         blocks: List<InPlaceBlock>,
-        lightBackground: Boolean = false,
         onCopy: () -> Unit,
         onSave: () -> Unit,
         onClose: () -> Unit
     ) {
-        Log.d("NabdScreenTranslate", "Showing in-place translation overlay (${blocks.size} blocks)")
+        Log.d("NabdScreenTranslate", "Showing inline overlay translation (${blocks.size} blocks)")
         hide()
 
         val d = context.resources.displayMetrics.density
 
-        // Full-screen cardless in-place view: only translated text over each block
-        val inPlace = InPlaceTranslationView(context, blocks, lightBackground) { hide(); onClose() }
+        // Full-screen view that draws opaque graphite bubbles near each block
+        val inPlace = InPlaceTranslationView(context, blocks) { hide(); onClose() }
         inPlaceView = inPlace
 
         val inPlaceParams = WindowManager.LayoutParams(
@@ -68,36 +68,8 @@ class TranslationOverlayManager(
             PixelFormat.TRANSLUCENT
         )
 
-        // Small, subtle control pill (close / copy / save) — NOT a translation card
-        val actionBar = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding((6 * d).toInt(), (4 * d).toInt(), (6 * d).toInt(), (4 * d).toInt())
-            val bg = android.graphics.drawable.GradientDrawable().apply {
-                setColor(0xCC131110.toInt()) // ~80% warm-black, compact
-                cornerRadius = 22 * d
-                setStroke((1 * d).toInt(), 0x33FFFFFF)
-            }
-            background = bg
-            elevation = 12 * d
-            alpha = 0.92f
-        }
-
-        actionBar.addView(makeIconAction("نسخ", colorCyan, d) {
-            val allText = blocks.joinToString("\n") { it.translatedText }
-            val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            cb.setPrimaryClip(ClipData.newPlainText("translation", allText))
-            Toast.makeText(context, "تم نسخ الترجمة", Toast.LENGTH_SHORT).show()
-            onCopy()
-        })
-        actionBar.addView(makeIconAction("حفظ", colorSuccess, d) {
-            onSave()
-            Toast.makeText(context, "تم الحفظ", Toast.LENGTH_SHORT).show()
-        })
-        actionBar.addView(makeIconAction("إخفاء", colorTextMuted, d) {
-            hide()
-            onClose()
-        })
+        // Small, subtle control pill (copy / save / hide)
+        val actionBar = buildControlPill(blocks, onCopy, onSave, onClose, d)
 
         val actionParams = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -116,10 +88,248 @@ class TranslationOverlayManager(
             windowManager.addView(inPlace, inPlaceParams)
             windowManager.addView(actionBar, actionParams)
             isVisible = true
-            Log.d("NabdScreenTranslate", "Cardless in-place overlay shown with ${blocks.count { it.boundingBox != null }} positioned blocks (lightBg=$lightBackground)")
+            Log.d("NabdScreenTranslate", "Inline overlay shown with ${blocks.count { it.boundingBox != null }} bubbles")
         } catch (e: Exception) {
-            Log.e("NabdScreenTranslate", "Failed to show in-place overlay: ${e.message}")
+            Log.e("NabdScreenTranslate", "Failed to show inline overlay: ${e.message}")
         }
+    }
+
+    /**
+     * Bottom Sheet mode: shows ALL detected translations in a single clean,
+     * scrollable panel anchored to the bottom of the screen.
+     */
+    @SuppressLint("InflateParams")
+    fun showBottomSheetTranslation(
+        blocks: List<InPlaceBlock>,
+        onCopy: () -> Unit,
+        onSave: () -> Unit,
+        onClose: () -> Unit
+    ) {
+        Log.d("NabdScreenTranslate", "Showing bottom-sheet translation (${blocks.size} blocks)")
+        // Keep any inline overlay (for "both" mode); only replace an existing sheet/card.
+        removeBottomSheet()
+
+        val view = buildBottomSheet(blocks, onCopy, onSave) {
+            removeBottomSheet(); onClose()
+        }
+        bottomSheetView = view
+
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+        }
+
+        try {
+            windowManager.addView(view, params)
+            isVisible = true
+        } catch (e: Exception) {
+            Log.e("NabdScreenTranslate", "Failed to show bottom sheet: ${e.message}")
+        }
+    }
+
+    /** Small compact control pill used by inline overlay mode. */
+    private fun buildControlPill(
+        blocks: List<InPlaceBlock>,
+        onCopy: () -> Unit,
+        onSave: () -> Unit,
+        onClose: () -> Unit,
+        d: Float
+    ): LinearLayout {
+        return LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding((6 * d).toInt(), (4 * d).toInt(), (6 * d).toInt(), (4 * d).toInt())
+            val bg = android.graphics.drawable.GradientDrawable().apply {
+                setColor(0xCC131110.toInt())
+                cornerRadius = 22 * d
+                setStroke((1 * d).toInt(), 0x33FFFFFF)
+            }
+            background = bg
+            elevation = 12 * d
+            alpha = 0.92f
+
+            addView(makeIconAction("نسخ", colorAccent, d) {
+                copyAll(blocks); onCopy()
+            })
+            addView(makeIconAction("حفظ", colorSuccess, d) {
+                onSave()
+                Toast.makeText(context, "تم الحفظ", Toast.LENGTH_SHORT).show()
+            })
+            addView(makeIconAction("إخفاء", colorTextMuted, d) {
+                hide(); onClose()
+            })
+        }
+    }
+
+    private fun copyAll(blocks: List<InPlaceBlock>) {
+        val allText = blocks.joinToString("\n") { it.translatedText }
+        val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        cb.setPrimaryClip(ClipData.newPlainText("translation", allText))
+        Toast.makeText(context, "تم نسخ الترجمة", Toast.LENGTH_SHORT).show()
+    }
+
+    /** Builds the clean bottom-sheet panel listing all translated blocks. */
+    @SuppressLint("SetTextI18n")
+    private fun buildBottomSheet(
+        blocks: List<InPlaceBlock>,
+        onCopy: () -> Unit,
+        onSave: () -> Unit,
+        onClose: () -> Unit
+    ): View {
+        val d = context.resources.displayMetrics.density
+        val pad = (16 * d).toInt()
+        val padSm = (10 * d).toInt()
+        val radius = 20 * d
+        val tajawal = runCatching {
+            androidx.core.content.res.ResourcesCompat.getFont(context, com.ammar.nabdscreentranslate.R.font.tajawal_medium)
+        }.getOrNull()
+
+        val container = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(pad, padSm, pad, pad)
+            layoutDirection = View.LAYOUT_DIRECTION_RTL
+            val bg = android.graphics.drawable.GradientDrawable().apply {
+                setColor(colorBg)
+                setCornerRadii(floatArrayOf(radius, radius, radius, radius, 0f, 0f, 0f, 0f))
+                setStroke((1 * d).toInt(), colorBorder)
+            }
+            background = bg
+            elevation = 16 * d
+        }
+
+        // Grab handle
+        container.addView(View(context).apply {
+            layoutParams = LinearLayout.LayoutParams((40 * d).toInt(), (4 * d).toInt()).apply {
+                gravity = Gravity.CENTER_HORIZONTAL
+                bottomMargin = padSm
+            }
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(colorTextDim)
+                cornerRadius = 2 * d
+            }
+        })
+
+        // Header row
+        val header = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
+        header.addView(View(context).apply {
+            layoutParams = LinearLayout.LayoutParams((3 * d).toInt(), (16 * d).toInt()).apply { marginEnd = (8 * d).toInt() }
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(colorAccent); cornerRadius = 2 * d
+            }
+        })
+        header.addView(TextView(context).apply {
+            text = "الترجمة"
+            setTextColor(colorTextWhite)
+            textSize = 15f
+            typeface = tajawal
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        header.addView(TextView(context).apply {
+            text = "✕"
+            setTextColor(colorTextDim)
+            textSize = 18f
+            setPadding(padSm, 0, padSm, 0)
+            setOnClickListener { onClose() }
+        })
+        container.addView(header)
+
+        // Divider
+        container.addView(View(context).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (1 * d).toInt()).apply {
+                topMargin = padSm; bottomMargin = padSm
+            }
+            setBackgroundColor(colorBorder)
+        })
+
+        // Scrollable list of translations (cap height ~45% screen)
+        val maxH = (context.resources.displayMetrics.heightPixels * 0.45f).toInt()
+        val scroll = ScrollView(context).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            isVerticalScrollBarEnabled = false
+            overScrollMode = View.OVER_SCROLL_NEVER
+        }
+        val list = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+
+        val translatedBlocks = blocks.filter { it.translatedText.isNotBlank() }
+        if (translatedBlocks.isEmpty()) {
+            list.addView(TextView(context).apply {
+                text = "لم يتم العثور على نص واضح"
+                setTextColor(colorTextMuted)
+                textSize = 14f
+                typeface = tajawal
+            })
+        } else {
+            translatedBlocks.forEachIndexed { i, block ->
+                list.addView(TextView(context).apply {
+                    text = block.translatedText
+                    setTextColor(colorTextWhite)
+                    textSize = 15f
+                    typeface = tajawal
+                    textDirection = View.TEXT_DIRECTION_RTL
+                    textAlignment = View.TEXT_ALIGNMENT_VIEW_START
+                    setLineSpacing(5 * d, 1f)
+                    val bg = android.graphics.drawable.GradientDrawable().apply {
+                        setColor(colorGlass)
+                        cornerRadius = 12 * d
+                    }
+                    background = bg
+                    setPadding((12 * d).toInt(), (10 * d).toInt(), (12 * d).toInt(), (10 * d).toInt())
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply { if (i > 0) topMargin = (8 * d).toInt() }
+                })
+            }
+        }
+        scroll.addView(list)
+        scroll.layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        )
+        // enforce max height
+        container.addView(scroll)
+        scroll.viewTreeObserver.addOnPreDrawListener(object : android.view.ViewTreeObserver.OnPreDrawListener {
+            override fun onPreDraw(): Boolean {
+                if (scroll.height > maxH) {
+                    scroll.layoutParams = scroll.layoutParams.apply { height = maxH }
+                    scroll.requestLayout()
+                }
+                scroll.viewTreeObserver.removeOnPreDrawListener(this)
+                return true
+            }
+        })
+
+        // Buttons
+        val buttons = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = (14 * d).toInt()
+            }
+        }
+        buttons.addView(makeBtn("نسخ الكل", colorAccent, d) {
+            copyAll(blocks); onCopy()
+        })
+        buttons.addView(makeBtn("حفظ", colorSuccess, d) {
+            onSave()
+            Toast.makeText(context, "تم الحفظ", Toast.LENGTH_SHORT).show()
+        })
+        container.addView(buttons)
+
+        return container
     }
 
     /** Small compact control chip for the in-place control pill. */
@@ -230,7 +440,18 @@ class TranslationOverlayManager(
         }
         inPlaceCloseButton = null
 
+        removeBottomSheet()
+
         isVisible = false
+    }
+
+    private fun removeBottomSheet() {
+        bottomSheetView?.let { v ->
+            try {
+                if (v.isAttachedToWindow) windowManager.removeView(v)
+            } catch (_: Exception) {}
+        }
+        bottomSheetView = null
     }
 
     fun toggleVisibility() {
@@ -331,7 +552,7 @@ class TranslationOverlayManager(
         // Translation
         content.addView(TextView(context).apply {
             text = "الترجمة"
-            setTextColor(colorCyan)
+            setTextColor(colorAccent)
             textSize = 10f
         })
         content.addView(TextView(context).apply {
@@ -354,7 +575,7 @@ class TranslationOverlayManager(
             }
         }
 
-        buttons.addView(makeBtn("نسخ", colorCyan, d) {
+        buttons.addView(makeBtn("نسخ", colorAccent, d) {
             val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             cb.setPrimaryClip(ClipData.newPlainText("translation", translatedText))
             Toast.makeText(context, "تم النسخ", Toast.LENGTH_SHORT).show()

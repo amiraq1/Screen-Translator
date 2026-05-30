@@ -5,7 +5,6 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
 import androidx.core.content.res.ResourcesCompat
@@ -15,196 +14,214 @@ import com.ammar.nabdscreentranslate.R
 import com.ammar.nabdscreentranslate.domain.InPlaceBlock
 
 /**
- * Cardless, subtitle-style in-place translation overlay.
+ * Inline overlay mode: draws each translated block inside an opaque, rounded
+ * "graphite" bubble positioned near the original text — NOT directly on top of
+ * it without a background. This prevents the original/translation overlap.
  *
- * Draws ONLY the translated text directly over each original text region,
- * using a strong black outline + drop shadow for readability instead of a
- * large opaque box. No cyan borders, no big black cards.
- *
- * Interactions:
- * - Tap a block → briefly reveal the original text for that block
- * - Tap empty area → toggle the whole overlay's text visibility (peek the screen)
+ * Features:
+ * - Opaque dark graphite bubble (#F2151517) with 12dp corners
+ * - Slim ember (#FF7000) accent bar on top of each bubble
+ * - White medium-weight Arabic text, RTL aligned, comfortable line height
+ * - Bubbles clamped inside screen bounds + vertically de-overlapped
+ * - Tap a bubble → toggle original/translation; tap empty area → peek screen
  */
 @SuppressLint("ViewConstructor")
 class InPlaceTranslationView(
     context: Context,
     private val blocks: List<InPlaceBlock>,
-    /** When true, draw a very faint translucent pill behind each line. Default off (pure cardless). */
-    private val lightBackground: Boolean = false,
     private val onCloseRequested: () -> Unit
 ) : View(context) {
 
     private val density = context.resources.displayMetrics.density
+    @Suppress("DEPRECATION")
     private val scaledDensity = context.resources.displayMetrics.scaledDensity
 
-    // Per-block state: true = show translated, false = momentarily show original
     private val showTranslated = BooleanArray(blocks.size) { true }
-
-    // Global peek toggle (tap empty area to hide all text and see the screen)
     private var textVisible = true
 
     private val tajawal: Typeface? = runCatching {
         ResourcesCompat.getFont(context, R.font.tajawal_medium)
     }.getOrNull()
 
-    // Fill text paint (white)
-    private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.WHITE
-        textAlign = Paint.Align.RIGHT // RTL
-        typeface = tajawal ?: Typeface.DEFAULT_BOLD
-        // Strong drop shadow for dark backgrounds
-        setShadowLayer(5f * density, 0f, 1.5f * density, 0xCC000000.toInt())
-    }
-
-    // Outline paint (black stroke around glyphs) for light backgrounds / contrast
-    private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = 0xE6000000.toInt() // near-black
-        style = Paint.Style.STROKE
-        textAlign = Paint.Align.RIGHT
-        typeface = tajawal ?: Typeface.DEFAULT_BOLD
-    }
-
-    // Optional faint background pill (only when enabled)
-    private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = 0x33000000 // ~20% black, very light
+    // ─── Paints ──────────────────────────────────────────────────────────────
+    private val bubblePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = 0xF2151517.toInt() // opaque dark graphite (~95%)
         style = Paint.Style.FILL
     }
-
-    // Tiny ember underline accent under each translated block
     private val accentPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = 0xFFFF7000.toInt() // Ember500
+        color = 0xFFFF7000.toInt() // Ember500 — highlights only
         style = Paint.Style.FILL
     }
+    private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
+        textAlign = Paint.Align.RIGHT // RTL: align to right edge
+        typeface = tajawal ?: Typeface.DEFAULT_BOLD
+    }
 
-    // Font-size tiers (sp → px)
-    private val sizeShort = 22f * scaledDensity   // short text
-    private val sizeMedium = 16f * scaledDensity  // medium
-    private val sizeLong = 13f * scaledDensity    // long
+    // ─── Metrics ─────────────────────────────────────────────────────────────
+    private val padH = 8f * density        // horizontal padding
+    private val padV = 6f * density         // vertical padding
+    private val corner = 12f * density
+    private val accentBar = 2.5f * density  // ember top bar height
+    private val safeMargin = 10f * density  // screen edge safe margin
+    private val bubbleGap = 6f * density    // min gap between stacked bubbles
+    private val lineSpacingMult = 1.3f      // comfortable Arabic line height
+
+    private val sizeShort = 19f * scaledDensity
+    private val sizeMedium = 15f * scaledDensity
+    private val sizeLong = 12.5f * scaledDensity
     private val sizeMin = 11f * scaledDensity
 
-    private val lineSpacingMult = 1.2f
-    private val cornerRadius = 5f * density
+    private data class Bubble(
+        val srcIndex: Int,
+        val rect: RectF,
+        val textRightX: Float,
+        val firstBaseline: Float,
+        val lineHeight: Float,
+        val textSize: Float,
+        val lines: List<String>
+    )
+
+    private var layoutCache: List<Bubble>? = null
+    private var cachedW = 0
+    private var cachedH = 0
 
     init {
         isClickable = true
-        // setShadowLayer requires software rendering on a custom View
-        setLayerType(LAYER_TYPE_SOFTWARE, null)
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (!textVisible) return
 
+        val bubbles = ensureLayout()
+        for (b in bubbles) {
+            val translated = showTranslated[b.srcIndex]
+            // Bubble background
+            canvas.drawRoundRect(b.rect, corner, corner, bubblePaint)
+            // Ember top accent bar (rounded, only top portion)
+            drawTopAccent(canvas, b.rect)
+            // Text
+            textPaint.textSize = b.textSize
+            textPaint.color = if (translated) Color.WHITE else 0xFFB9ABA0.toInt()
+            var y = b.firstBaseline
+            for (line in b.lines) {
+                canvas.drawText(line, b.textRightX, y, textPaint)
+                y += b.lineHeight
+            }
+        }
+    }
+
+    private fun drawTopAccent(canvas: Canvas, rect: RectF) {
+        canvas.save()
+        canvas.clipRect(rect.left, rect.top, rect.right, rect.top + accentBar)
+        canvas.drawRoundRect(
+            RectF(rect.left, rect.top, rect.right, rect.top + corner * 2),
+            corner, corner, accentPaint
+        )
+        canvas.restore()
+    }
+
+    /** Build (and cache) bubble layouts: measure, clamp to screen, de-overlap vertically. */
+    private fun ensureLayout(): List<Bubble> {
+        val w = width
+        val h = height
+        layoutCache?.let { if (w == cachedW && h == cachedH) return it }
+        if (w == 0 || h == 0) return emptyList()
+
+        val maxInnerWidth = w - 2 * safeMargin - 2 * padH
+
+        // Build initial bubbles
+        val raw = ArrayList<Bubble>()
         blocks.forEachIndexed { index, block ->
             val box = block.boundingBox ?: return@forEachIndexed
-            val text = if (showTranslated[index]) block.translatedText else block.originalText
+            val text = block.translatedText
             if (text.isBlank()) return@forEachIndexed
-            drawBlock(canvas, box, text, showTranslated[index])
+
+            // Preferred text width: track original block but cap to screen-safe width
+            val preferred = box.width().toFloat().coerceIn(90f * density, maxInnerWidth)
+
+            // Choose size tier by length, auto-fit down so it never gets absurdly tall
+            var size = when {
+                text.length <= 22 -> sizeShort
+                text.length <= 75 -> sizeMedium
+                else -> sizeLong
+            }
+            var lines: List<String>
+            while (true) {
+                textPaint.textSize = size
+                lines = wrapText(text, preferred)
+                // cap to 6 lines; if more, shrink
+                if (lines.size <= 6 || size <= sizeMin) break
+                size -= 1f * density
+            }
+            textPaint.textSize = size
+            lines = wrapText(text, preferred)
+
+            val actualTextW = (lines.maxOfOrNull { textPaint.measureText(it) } ?: preferred)
+                .coerceAtMost(maxInnerWidth)
+            val lineHeight = size * lineSpacingMult
+            val bubbleW = actualTextW + 2 * padH
+            val bubbleH = lines.size * lineHeight + 2 * padV + accentBar
+
+            // Position: anchor at original block, clamp inside screen
+            var left = box.left.toFloat()
+            if (left + bubbleW > w - safeMargin) left = w - safeMargin - bubbleW
+            if (left < safeMargin) left = safeMargin
+            var top = box.top.toFloat()
+            if (top < safeMargin) top = safeMargin
+
+            val rect = RectF(left, top, left + bubbleW, top + bubbleH)
+            val textRightX = rect.right - padH
+            val firstBaseline = rect.top + accentBar + padV + size * 0.85f
+
+            raw.add(Bubble(index, rect, textRightX, firstBaseline, lineHeight, size, lines))
         }
+
+        // De-overlap: process top→bottom, push down bubbles that collide
+        raw.sortBy { it.rect.top }
+        var lastBottom = 0f
+        val placed = ArrayList<Bubble>(raw.size)
+        for (b in raw) {
+            var rect = b.rect
+            if (rect.top < lastBottom + bubbleGap) {
+                val shift = (lastBottom + bubbleGap) - rect.top
+                rect = RectF(rect.left, rect.top + shift, rect.right, rect.bottom + shift)
+            }
+            // Clamp bottom inside screen (if it spills, move up but keep within bounds)
+            if (rect.bottom > h - safeMargin) {
+                val up = rect.bottom - (h - safeMargin)
+                val newTop = (rect.top - up).coerceAtLeast(safeMargin)
+                rect = RectF(rect.left, newTop, rect.right, newTop + (b.rect.bottom - b.rect.top))
+            }
+            val textRightX = rect.right - padH
+            val firstBaseline = rect.top + accentBar + padV + b.textSize * 0.85f
+            placed.add(b.copy(rect = rect, textRightX = textRightX, firstBaseline = firstBaseline))
+            lastBottom = rect.bottom
+        }
+
+        layoutCache = placed
+        cachedW = w
+        cachedH = h
+        return placed
     }
 
-    private fun drawBlock(canvas: Canvas, box: Rect, text: String, translated: Boolean) {
-        val maxWidth = box.width().toFloat().coerceAtLeast(40f * density)
-
-        // Pick a starting size tier based on text length, then auto-fit down.
-        val startSize = when {
-            text.length <= 25 -> sizeShort
-            text.length <= 80 -> sizeMedium
-            else -> sizeLong
-        }.coerceAtMost(box.height() * 1.1f)
-
-        var size = startSize
-        var lines: List<String>
-        // Max lines that reasonably fit the block height (allow some growth, capped)
-        val maxLines = ((box.height() / (startSize * lineSpacingMult)).toInt() + 2).coerceIn(1, 6)
-
-        while (true) {
-            applyTextSize(size)
-            lines = wrapText(text, maxWidth, maxLines)
-            val totalHeight = lines.size * size * lineSpacingMult
-            // Fit within ~1.8x the original block height before shrinking further
-            if (totalHeight <= box.height() * 1.8f || size <= sizeMin) break
-            size -= 1f * density
-        }
-        applyTextSize(size)
-        lines = wrapText(text, maxWidth, maxLines)
-
-        val lineHeight = size * lineSpacingMult
-        val xRight = box.right.toFloat()
-        // Anchor baseline near the original top, nudged for cap height
-        var y = box.top.toFloat() + size * 0.95f
-
-        // Optional faint background pill behind the text block
-        if (lightBackground) {
-            val contentH = lines.size * lineHeight
-            val padH = 6f * density
-            val padV = 3f * density
-            val rect = RectF(
-                box.left.toFloat() - padH,
-                box.top.toFloat() - padV,
-                box.right.toFloat() + padH,
-                box.top.toFloat() + contentH + padV
-            )
-            canvas.drawRoundRect(rect, cornerRadius, cornerRadius, bgPaint)
-        }
-
-        // Outline thickness scales slightly with text size
-        strokePaint.strokeWidth = (size * 0.10f).coerceIn(2f * density, 4.5f * density)
-
-        for (line in lines) {
-            // 1) black outline (no shadow) for crisp edges on any background
-            canvas.drawText(line, xRight, y, strokePaint)
-            // 2) white fill with soft shadow on top
-            fillPaint.color = Color.WHITE
-            canvas.drawText(line, xRight, y, fillPaint)
-            y += lineHeight
-        }
-
-        // Subtle ember accent: a short underline at the bottom-right of the block
-        val accentW = (box.width() * 0.18f).coerceIn(14f * density, 40f * density)
-        val accentY = (box.top + (lines.size * lineHeight) + 2f * density)
-        canvas.drawRoundRect(
-            RectF(xRight - accentW, accentY, xRight, accentY + 2f * density),
-            1f * density, 1f * density, accentPaint
-        )
-    }
-
-    private fun applyTextSize(size: Float) {
-        fillPaint.textSize = size
-        strokePaint.textSize = size
-    }
-
-    /** Greedy word-wrap to fit width, capped at maxLines (last line ellipsized if needed). */
-    private fun wrapText(text: String, maxWidth: Float, maxLines: Int): List<String> {
+    /** Greedy word-wrap to fit width (no hard line cap; sizing handles overflow). */
+    private fun wrapText(text: String, maxWidth: Float): List<String> {
         if (maxWidth <= 0) return listOf(text)
         val words = text.split(" ")
         val lines = mutableListOf<String>()
         var current = StringBuilder()
-
         for (word in words) {
             val candidate = if (current.isEmpty()) word else "$current $word"
-            if (fillPaint.measureText(candidate) <= maxWidth) {
+            if (textPaint.measureText(candidate) <= maxWidth) {
                 current = StringBuilder(candidate)
             } else {
                 if (current.isNotEmpty()) lines.add(current.toString())
                 current = StringBuilder(word)
-                if (lines.size >= maxLines) break
             }
         }
-        if (current.isNotEmpty() && lines.size < maxLines) lines.add(current.toString())
-
-        // If we overflowed, ellipsize the last visible line
-        if (lines.size >= maxLines) {
-            val trimmed = lines.take(maxLines).toMutableList()
-            var last = trimmed.last()
-            if (fillPaint.measureText(last) > maxWidth || words.size > trimmed.sumOf { it.split(" ").size }) {
-                while (last.isNotEmpty() && fillPaint.measureText("$last…") > maxWidth) {
-                    last = last.dropLast(1)
-                }
-                trimmed[trimmed.size - 1] = "$last…"
-            }
-            return trimmed
-        }
+        if (current.isNotEmpty()) lines.add(current.toString())
         return if (lines.isEmpty()) listOf(text) else lines
     }
 
@@ -214,20 +231,18 @@ class InPlaceTranslationView(
         val x = event.x
         val y = event.y
 
-        // Tap a block → toggle original/translated for that block
-        blocks.forEachIndexed { index, block ->
-            val box = block.boundingBox ?: return@forEachIndexed
-            val pad = 10 * density
-            if (x >= box.left - pad && x <= box.right + pad &&
-                y >= box.top - pad && y <= box.bottom + pad
-            ) {
-                showTranslated[index] = !showTranslated[index]
+        val bubbles = ensureLayout()
+        for (b in bubbles) {
+            if (b.rect.contains(x, y)) {
+                showTranslated[b.srcIndex] = !showTranslated[b.srcIndex]
+                // recompute layout because text length changes bubble size
+                layoutCache = null
                 invalidate()
                 return true
             }
         }
 
-        // Tap empty area → peek the underlying screen (hide/show all translated text)
+        // Tap empty area → peek the underlying screen
         textVisible = !textVisible
         invalidate()
         return true

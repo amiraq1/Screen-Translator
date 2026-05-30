@@ -69,7 +69,7 @@ fun AppNavigation(
                 onSaveHistoryChanged = settingsViewModel::setSaveHistory,
                 onDarkModeChanged = settingsViewModel::setDarkMode,
                 onVibrateChanged = settingsViewModel::setVibrateOnTranslate,
-                onLightBgChanged = settingsViewModel::setLightBgBehindTranslation,
+                onDisplayModeChanged = settingsViewModel::setDisplayMode,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

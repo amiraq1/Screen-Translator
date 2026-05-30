@@ -12,7 +12,7 @@ data class SettingsUiState(
     val saveHistory: Boolean = true,
     val darkMode: Boolean = true,
     val vibrateOnTranslate: Boolean = true,
-    val lightBgBehindTranslation: Boolean = false,
+    val displayMode: String = SettingsDataStore.DISPLAY_MODE_OVERLAY,
     val sourceLang: String = "auto",
     val targetLang: String = "ar"
 )
@@ -38,12 +38,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         )
     }.combine(settingsDataStore.targetLang) { state, targetLang ->
         state.copy(targetLang = targetLang)
-    }.combine(settingsDataStore.lightBackgroundBehindTranslation) { state, lightBg ->
-        state.copy(lightBgBehindTranslation = lightBg)
+    }.combine(settingsDataStore.displayMode) { state, mode ->
+        state.copy(displayMode = mode)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsUiState())
 
-    fun setLightBgBehindTranslation(enabled: Boolean) {
-        viewModelScope.launch { settingsDataStore.setLightBackgroundBehindTranslation(enabled) }
+    fun setDisplayMode(mode: String) {
+        viewModelScope.launch { settingsDataStore.setDisplayMode(mode) }
     }
 
     fun setOverlayOpacity(opacity: Float) {

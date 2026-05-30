@@ -2,6 +2,7 @@ package com.ammar.nabdscreentranslate.ui.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,8 +18,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import com.ammar.nabdscreentranslate.data.SettingsDataStore
 import com.ammar.nabdscreentranslate.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -29,7 +32,7 @@ fun SettingsScreen(
     onSaveHistoryChanged: (Boolean) -> Unit,
     onDarkModeChanged: (Boolean) -> Unit,
     onVibrateChanged: (Boolean) -> Unit,
-    onLightBgChanged: (Boolean) -> Unit,
+    onDisplayModeChanged: (String) -> Unit,
     onNavigateBack: () -> Unit
 ) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
@@ -70,6 +73,19 @@ fun SettingsScreen(
                 // ─── Translation Overlay ─────────────────────────────
                 SettingsSection(title = "نافذة الترجمة", icon = Icons.Outlined.Layers) {
                     Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "طريقة عرض الترجمة",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextLight
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        DisplayModeSelector(
+                            selected = uiState.displayMode,
+                            onSelected = onDisplayModeChanged
+                        )
+
+                        Spacer(modifier = Modifier.height(18.dp))
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
@@ -87,14 +103,6 @@ fun SettingsScreen(
                             colors = SliderDefaults.colors(thumbColor = Ember500, activeTrackColor = Ember500, inactiveTrackColor = Glass600)
                         )
                     }
-                    Divider(color = GlassBorder.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = 16.dp))
-                    SettingsToggle(
-                        icon = Icons.Outlined.FormatColorFill,
-                        title = "خلفية خفيفة خلف الترجمة",
-                        subtitle = "تظهر الترجمة كنص فقط فوق الشاشة افتراضيًا",
-                        checked = uiState.lightBgBehindTranslation,
-                        onCheckedChange = onLightBgChanged
-                    )
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
@@ -157,6 +165,47 @@ fun SettingsScreen(
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun DisplayModeSelector(
+    selected: String,
+    onSelected: (String) -> Unit
+) {
+    val options = listOf(
+        SettingsDataStore.DISPLAY_MODE_OVERLAY to "فوق النص",
+        SettingsDataStore.DISPLAY_MODE_SHEET to "لوحة سفلية",
+        SettingsDataStore.DISPLAY_MODE_BOTH to "كلاهما"
+    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(Glass700.copy(alpha = 0.4f))
+            .border(1.dp, GlassBorder.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        options.forEach { (value, label) ->
+            val isSelected = value == selected
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(if (isSelected) Ember500 else androidx.compose.ui.graphics.Color.Transparent)
+                    .clickable { onSelected(value) }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (isSelected) Ink900 else TextMuted,
+                    textAlign = TextAlign.Center
+                )
             }
         }
     }
