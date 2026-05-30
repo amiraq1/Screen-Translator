@@ -29,6 +29,7 @@ fun SettingsScreen(
     onSaveHistoryChanged: (Boolean) -> Unit,
     onDarkModeChanged: (Boolean) -> Unit,
     onVibrateChanged: (Boolean) -> Unit,
+    onLightBgChanged: (Boolean) -> Unit,
     onNavigateBack: () -> Unit
 ) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
@@ -86,6 +87,14 @@ fun SettingsScreen(
                             colors = SliderDefaults.colors(thumbColor = Ember500, activeTrackColor = Ember500, inactiveTrackColor = Glass600)
                         )
                     }
+                    Divider(color = GlassBorder.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = 16.dp))
+                    SettingsToggle(
+                        icon = Icons.Outlined.FormatColorFill,
+                        title = "خلفية خفيفة خلف الترجمة",
+                        subtitle = "تظهر الترجمة كنص فقط فوق الشاشة افتراضيًا",
+                        checked = uiState.lightBgBehindTranslation,
+                        onCheckedChange = onLightBgChanged
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))

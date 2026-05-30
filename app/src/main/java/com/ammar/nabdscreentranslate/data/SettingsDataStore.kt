@@ -22,6 +22,7 @@ class SettingsDataStore(private val context: Context) {
         val SAVE_HISTORY = booleanPreferencesKey("save_history")
         val DARK_MODE = booleanPreferencesKey("dark_mode")
         val VIBRATE_ON_TRANSLATE = booleanPreferencesKey("vibrate_on_translate")
+        val LIGHT_BG_BEHIND_TRANSLATION = booleanPreferencesKey("light_bg_behind_translation")
     }
 
     val sourceLang: Flow<String> = context.dataStore.data.map { it[Keys.SOURCE_LANG] ?: "auto" }
@@ -30,6 +31,10 @@ class SettingsDataStore(private val context: Context) {
     val saveHistory: Flow<Boolean> = context.dataStore.data.map { it[Keys.SAVE_HISTORY] ?: true }
     val darkMode: Flow<Boolean> = context.dataStore.data.map { it[Keys.DARK_MODE] ?: true }
     val vibrateOnTranslate: Flow<Boolean> = context.dataStore.data.map { it[Keys.VIBRATE_ON_TRANSLATE] ?: true }
+
+    /** Whether to draw a faint translucent background behind in-place translated text. Default OFF (cardless). */
+    val lightBackgroundBehindTranslation: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.LIGHT_BG_BEHIND_TRANSLATION] ?: false }
 
     suspend fun setSourceLang(lang: String) {
         context.dataStore.edit { it[Keys.SOURCE_LANG] = lang }
@@ -53,5 +58,9 @@ class SettingsDataStore(private val context: Context) {
 
     suspend fun setVibrateOnTranslate(vibrate: Boolean) {
         context.dataStore.edit { it[Keys.VIBRATE_ON_TRANSLATE] = vibrate }
+    }
+
+    suspend fun setLightBackgroundBehindTranslation(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.LIGHT_BG_BEHIND_TRANSLATION] = enabled }
     }
 }

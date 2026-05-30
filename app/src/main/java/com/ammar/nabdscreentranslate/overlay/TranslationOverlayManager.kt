@@ -45,6 +45,7 @@ class TranslationOverlayManager(
     @SuppressLint("InflateParams")
     fun showInPlaceTranslation(
         blocks: List<InPlaceBlock>,
+        lightBackground: Boolean = false,
         onCopy: () -> Unit,
         onSave: () -> Unit,
         onClose: () -> Unit
@@ -54,8 +55,8 @@ class TranslationOverlayManager(
 
         val d = context.resources.displayMetrics.density
 
-        // Full-screen in-place view that draws translated text over each block
-        val inPlace = InPlaceTranslationView(context, blocks) { hide(); onClose() }
+        // Full-screen cardless in-place view: only translated text over each block
+        val inPlace = InPlaceTranslationView(context, blocks, lightBackground) { hide(); onClose() }
         inPlaceView = inPlace
 
         val inPlaceParams = WindowManager.LayoutParams(
@@ -67,34 +68,35 @@ class TranslationOverlayManager(
             PixelFormat.TRANSLUCENT
         )
 
-        // Floating action bar (close / copy / save) anchored at top
+        // Small, subtle control pill (close / copy / save) — NOT a translation card
         val actionBar = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding((12 * d).toInt(), (8 * d).toInt(), (12 * d).toInt(), (8 * d).toInt())
+            setPadding((6 * d).toInt(), (4 * d).toInt(), (6 * d).toInt(), (4 * d).toInt())
             val bg = android.graphics.drawable.GradientDrawable().apply {
-                setColor(colorBg)
-                cornerRadius = 24 * d
-                setStroke((1 * d).toInt(), colorCyan)
+                setColor(0xCC131110.toInt()) // ~80% warm-black, compact
+                cornerRadius = 22 * d
+                setStroke((1 * d).toInt(), 0x33FFFFFF)
             }
             background = bg
-            elevation = 14 * d
+            elevation = 12 * d
+            alpha = 0.92f
         }
 
-        actionBar.addView(makeActionLabel("✕ إغلاق", colorError, d) {
-            hide()
-            onClose()
-        })
-        actionBar.addView(makeActionLabel("نسخ", colorCyan, d) {
+        actionBar.addView(makeIconAction("نسخ", colorCyan, d) {
             val allText = blocks.joinToString("\n") { it.translatedText }
             val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             cb.setPrimaryClip(ClipData.newPlainText("translation", allText))
-            Toast.makeText(context, "تم نسخ كل الترجمة", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "تم نسخ الترجمة", Toast.LENGTH_SHORT).show()
             onCopy()
         })
-        actionBar.addView(makeActionLabel("حفظ", colorSuccess, d) {
+        actionBar.addView(makeIconAction("حفظ", colorSuccess, d) {
             onSave()
             Toast.makeText(context, "تم الحفظ", Toast.LENGTH_SHORT).show()
+        })
+        actionBar.addView(makeIconAction("إخفاء", colorTextMuted, d) {
+            hide()
+            onClose()
         })
 
         val actionParams = WindowManager.LayoutParams(
@@ -106,7 +108,7 @@ class TranslationOverlayManager(
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-            y = (40 * d).toInt()
+            y = (32 * d).toInt()
         }
         inPlaceCloseButton = actionBar
 
@@ -114,30 +116,25 @@ class TranslationOverlayManager(
             windowManager.addView(inPlace, inPlaceParams)
             windowManager.addView(actionBar, actionParams)
             isVisible = true
-            Log.d("NabdScreenTranslate", "In-place overlay shown with ${blocks.count { it.boundingBox != null }} positioned blocks")
+            Log.d("NabdScreenTranslate", "Cardless in-place overlay shown with ${blocks.count { it.boundingBox != null }} positioned blocks (lightBg=$lightBackground)")
         } catch (e: Exception) {
             Log.e("NabdScreenTranslate", "Failed to show in-place overlay: ${e.message}")
         }
     }
 
-    private fun makeActionLabel(text: String, color: Int, d: Float, onClick: () -> Unit): TextView {
+    /** Small compact control chip for the in-place control pill. */
+    private fun makeIconAction(text: String, color: Int, d: Float, onClick: () -> Unit): TextView {
         return TextView(context).apply {
             this.text = text
             setTextColor(color)
-            textSize = 14f
-            setPadding((16 * d).toInt(), (8 * d).toInt(), (16 * d).toInt(), (8 * d).toInt())
-            val bg = android.graphics.drawable.GradientDrawable().apply {
-                setColor(0x18FFFFFF)
-                cornerRadius = 18 * d
-                setStroke((1 * d).toInt(), (color and 0x00FFFFFF) or 0x40000000)
-            }
-            background = bg
+            textSize = 12.5f
+            setPadding((13 * d).toInt(), (6 * d).toInt(), (13 * d).toInt(), (6 * d).toInt())
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply {
-                marginStart = (5 * d).toInt()
-                marginEnd = (5 * d).toInt()
+                marginStart = (3 * d).toInt()
+                marginEnd = (3 * d).toInt()
             }
             setOnClickListener { onClick() }
         }

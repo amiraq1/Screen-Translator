@@ -243,6 +243,7 @@ class FloatingButtonService : Service() {
                 // Step 2: Read settings
                 val sourceLang = settingsDataStore.sourceLang.first()
                 val targetLang = settingsDataStore.targetLang.first()
+                val lightBgBehindTranslation = settingsDataStore.lightBackgroundBehindTranslation.first()
                 Log.d(TAG, "Languages - source=$sourceLang, target=$targetLang")
 
                 // Step 3: Set OCR engine language for hybrid selection
@@ -273,9 +274,10 @@ class FloatingButtonService : Service() {
                             translationOverlayManager?.hide()
 
                             if (inPlaceResult.hasPositions) {
-                                // Google Lens style: draw translations over each block in place
+                                // Cardless in-place: draw translations over each block
                                 translationOverlayManager?.showInPlaceTranslation(
                                     blocks = inPlaceResult.blocks,
+                                    lightBackground = lightBgBehindTranslation,
                                     onCopy = { /* handled internally */ },
                                     onSave = {
                                         serviceScope.launch {
