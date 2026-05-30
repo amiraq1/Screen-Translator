@@ -100,10 +100,15 @@ class TranslationOverlayManager(
     }
 
     fun hide() {
-        overlayView?.let {
+        val view = overlayView
+        if (view != null) {
             try {
-                windowManager.removeView(it)
-            } catch (_: Exception) {}
+                if (view.isAttachedToWindow) {
+                    windowManager.removeView(view)
+                }
+            } catch (_: Exception) {
+                // Ignore removal errors - view may already be detached
+            }
         }
         overlayView = null
         isVisible = false

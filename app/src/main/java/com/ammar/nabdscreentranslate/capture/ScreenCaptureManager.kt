@@ -190,6 +190,7 @@ class ScreenCaptureManager(private val context: Context) {
     }
 
     private fun cleanup() {
+        Log.d(TAG, "ScreenCaptureManager: cleaning up resources")
         try {
             imageReader?.setOnImageAvailableListener(null, null)
         } catch (e: Exception) {
@@ -197,12 +198,14 @@ class ScreenCaptureManager(private val context: Context) {
         }
         try {
             virtualDisplay?.release()
+            Log.d(TAG, "VirtualDisplay released")
         } catch (e: Exception) {
             Log.w(TAG, "Error releasing VirtualDisplay: ${e.message}")
         }
         virtualDisplay = null
         try {
             imageReader?.close()
+            Log.d(TAG, "ImageReader closed")
         } catch (e: Exception) {
             Log.w(TAG, "Error closing ImageReader: ${e.message}")
         }
@@ -212,6 +215,7 @@ class ScreenCaptureManager(private val context: Context) {
             projectionCallback?.let { projection?.unregisterCallback(it) }
             projectionCallback = null
             projection?.stop()
+            Log.d(TAG, "MediaProjection stopped")
         } catch (e: Exception) {
             Log.w(TAG, "Error stopping projection: ${e.message}")
         }

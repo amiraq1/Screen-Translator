@@ -230,19 +230,20 @@ class FloatingButtonService : Service() {
         serviceScope.launch {
             delay(250) // Wait for button to hide from screen
 
+            var bitmap: android.graphics.Bitmap? = null
             try {
                 // Step 1: Capture screenshot
-                Log.d(TAG, "Step 1: Capturing screen...")
-                val bitmap = screenCaptureManager.captureScreen()
+                Log.d(TAG, "جارٍ التقاط الشاشة...")
+                bitmap = screenCaptureManager.captureScreen()
                 Log.d(TAG, "Screen captured: ${bitmap.width}x${bitmap.height}")
 
                 // Step 2: Read settings
                 val sourceLang = settingsDataStore.sourceLang.first()
                 val targetLang = settingsDataStore.targetLang.first()
-                Log.d(TAG, "Step 2: Languages - source=$sourceLang, target=$targetLang")
+                Log.d(TAG, "Languages - source=$sourceLang, target=$targetLang")
 
                 // Step 3: OCR + Translation via UseCase
-                Log.d(TAG, "Step 3: Running OCR + Translation...")
+                Log.d(TAG, "جارٍ قراءة النص...")
                 val result = translateScreenUseCase.executeWithBlocks(
                     bitmap = bitmap,
                     sourceLang = sourceLang,
@@ -254,8 +255,11 @@ class FloatingButtonService : Service() {
                 withContext(Dispatchers.Main) {
                     result.fold(
                         onSuccess = { screenResult ->
-                            Log.d(TAG, "Step 4: Translation SUCCESS - showing overlay")
+                            Log.d(TAG, "جارٍ الترجمة... → Translation SUCCESS")
                             lastTranslationResult = screenResult.originalText to screenResult.translatedText
+
+                            // Hide any existing overlay before showing new one
+                            translationOverlayManager?.hide()
 
                             translationOverlayManager?.showTranslation(
                                 originalText = screenResult.originalText,
@@ -285,19 +289,19 @@ class FloatingButtonService : Service() {
                             )
 
                             vibrateIfEnabled()
+                            Log.d(TAG, "تم حفظ الترجمة")
                         },
                         onFailure = { error ->
-                            Log.e(TAG, "Step 4: Translation FAILED - ${error.message}")
-                            translationOverlayManager?.showError(
-                                error.message ?: "تعذرت الترجمة. حاول مرة أخرى."
-                            )
+                            Log.e(TAG, "Translation FAILED - ${error.message}")
+                            val errorMsg = when {
+                                error.message?.contains("لم يتم العثور") == true -> "لم يتم العثور على نص واضح"
+                                error.message?.contains("نموذج") == true -> "تعذرت الترجمة - تأكد من تحميل نموذج اللغة"
+                                error.message?.contains("صلاحية") == true -> error.message!!
+                                else -> "تعذرت الترجمة. حاول مرة أخرى."
+                            }
+                            translationOverlayManager?.showError(errorMsg)
                         }
                     )
-                }
-
-                // Recycle bitmap after use
-                if (!bitmap.isRecycled) {
-                    bitmap.recycle()
                 }
 
             } catch (e: Exception) {
@@ -306,11 +310,19 @@ class FloatingButtonService : Service() {
                     val msg = when {
                         e.message?.contains("صلاحية") == true -> e.message!!
                         e.message?.contains("تعذر") == true -> e.message!!
+                        e.message?.contains("timeout") == true -> "تعذر التقاط الشاشة - انتهت المهلة"
                         else -> "تعذر التقاط الشاشة. حاول مرة أخرى."
                     }
                     translationOverlayManager?.showError(msg)
                 }
             } finally {
+                // Safely recycle bitmap
+                try {
+                    bitmap?.let { if (!it.isRecycled) it.recycle() }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error recycling bitmap: ${e.message}")
+                }
+
                 withContext(Dispatchers.Main) {
                     floatingView?.visibility = View.VISIBLE
                     floatingView?.setLoading(false)
@@ -378,7 +390,11 @@ class FloatingButtonService : Service() {
 
     private fun removeFloatingButton() {
         try {
-            floatingView?.let { windowManager?.removeView(it) }
+            floatingView?.let { view ->
+                if (view.isAttachedToWindow) {
+                    windowManager?.removeView(view)
+                }
+            }
         } catch (e: Exception) {
             Log.w(TAG, "Error removing floating button: ${e.message}")
         }
@@ -400,11 +416,12 @@ class FloatingButtonService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.d(TAG, "FloatingButtonService destroyed")
+        Log.d(TAG, "FloatingButtonService destroyed - cleaning up all resources")
+        isProcessing = false
         removeFloatingButton()
         serviceScope.cancel()
-        ocrEngine.close()
-        translationEngine.close()
+        try { ocrEngine.close() } catch (e: Exception) { Log.w(TAG, "Error closing OCR: ${e.message}") }
+        try { translationEngine.close() } catch (e: Exception) { Log.w(TAG, "Error closing translation: ${e.message}") }
     }
 
     companion object {
