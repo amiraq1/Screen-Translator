@@ -28,7 +28,7 @@ import com.ammar.nabdscreentranslate.data.AppDatabase
 import com.ammar.nabdscreentranslate.data.SettingsDataStore
 import com.ammar.nabdscreentranslate.domain.SaveTranslationUseCase
 import com.ammar.nabdscreentranslate.domain.TranslateScreenUseCase
-import com.ammar.nabdscreentranslate.ocr.MlKitOcrEngine
+import com.ammar.nabdscreentranslate.ocr.HybridOcrEngine
 import com.ammar.nabdscreentranslate.translate.MlKitTranslationEngine
 import com.ammar.nabdscreentranslate.ui.MainActivity
 import kotlinx.coroutines.*
@@ -49,7 +49,7 @@ class FloatingButtonService : Service() {
     private lateinit var saveTranslationUseCase: SaveTranslationUseCase
     private lateinit var settingsDataStore: SettingsDataStore
 
-    private val ocrEngine = MlKitOcrEngine()
+    private lateinit var ocrEngine: HybridOcrEngine
     private val translationEngine = MlKitTranslationEngine()
 
     // Debounce & state
@@ -71,6 +71,7 @@ class FloatingButtonService : Service() {
         settingsDataStore = SettingsDataStore(this)
 
         val dao = AppDatabase.getInstance(this).translationHistoryDao()
+        ocrEngine = HybridOcrEngine(this)
         translateScreenUseCase = TranslateScreenUseCase(ocrEngine, translationEngine)
         saveTranslationUseCase = SaveTranslationUseCase(dao)
         translationOverlayManager = TranslationOverlayManager(this, windowManager!!)
@@ -242,7 +243,10 @@ class FloatingButtonService : Service() {
                 val targetLang = settingsDataStore.targetLang.first()
                 Log.d(TAG, "Languages - source=$sourceLang, target=$targetLang")
 
-                // Step 3: OCR + Translation via UseCase
+                // Step 3: Set OCR engine language for hybrid selection
+                ocrEngine.setSourceLanguage(sourceLang)
+
+                // Step 4: OCR + Translation via UseCase
                 Log.d(TAG, "جارٍ قراءة النص...")
                 val result = translateScreenUseCase.executeWithBlocks(
                     bitmap = bitmap,

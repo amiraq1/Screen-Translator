@@ -6,7 +6,7 @@ Real-time on-device screen translation for Android. Capture any text on screen, 
 
 - **Floating Button** — Draggable overlay button, always accessible
 - **Screen Capture** — MediaProjection-based screenshot capture
-- **OCR** — ML Kit Text Recognition (Latin scripts)
+- **OCR** — ML Kit Text Recognition (Latin scripts) + Tesseract (Arabic script)
 - **Translation** — ML Kit offline translation (50+ languages → Arabic)
 - **Region Selection** — Long-press to select specific screen area
 - **Translation History** — Auto-save, search, copy, delete
@@ -84,15 +84,16 @@ adb shell appops set com.ammar.nabdscreentranslate SYSTEM_ALERT_WINDOW allow
 
 - Android 14+ requires fresh MediaProjection consent per capture
 - First translation is slow (ML Kit model download ~30MB)
-- Arabic OCR not yet supported (Latin scripts only)
-- Debug APK is large (~113MB) due to bundled ML Kit models
+- Debug APK is large (~142MB) due to bundled ML Kit models + Tesseract native libs
 - DRM-protected content cannot be captured
+- Arabic OCR accuracy depends on text clarity and font size
 
 ## Tech Stack
 
 - Kotlin 1.9 + Jetpack Compose
 - ML Kit Text Recognition 16.0.0
 - ML Kit Translation 17.0.2
+- Tesseract4Android 4.9.0 (Arabic OCR)
 - Room 2.6.1 + KSP
 - DataStore Preferences
 - MediaProjection API

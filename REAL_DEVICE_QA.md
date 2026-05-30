@@ -133,9 +133,55 @@ D/NabdScreenTranslate: Showing translation overlay
 
 ## ملاحظات
 - التطبيق لا يحفظ أي صور شاشة
-- المعالجة تتم على الجهاز فقط (ML Kit on-device)
-- الإنترنت مطلوب فقط لتحميل النماذج أول مرة
-- حجم APK كبير (~113MB) بسبب ML Kit - يمكن تقليله لاحقًا
+- المعالجة تتم على الجهاز فقط (ML Kit on-device + Tesseract)
+- الإنترنت مطلوب فقط لتحميل نماذج ML Kit أول مرة
+- OCR العربي يعمل offline بالكامل (Tesseract + traineddata مدمج)
+- حجم APK كبير (~142MB) بسبب ML Kit + Tesseract native libs
+
+---
+
+## اختبار OCR العربي (Phase 20)
+
+### 14. قراءة نص عربي
+- [ ] فتح تطبيق الإعدادات بالعربية
+- [ ] الضغط على الزر العائم
+- [ ] التأكد من قراءة النص العربي
+- [ ] ظهور النص في نافذة الترجمة
+
+### 15. Auto-detect مع نص عربي
+- [ ] اللغة المصدر = "تلقائي"
+- [ ] فتح صفحة عربية
+- [ ] الضغط على الزر العائم
+- [ ] ML Kit يفشل → fallback إلى Tesseract Arabic
+- [ ] النص العربي يُقرأ بنجاح
+
+### 16. نص إنجليزي (لم يتأثر)
+- [ ] اللغة المصدر = "تلقائي" أو "en"
+- [ ] فتح صفحة إنجليزية
+- [ ] ML Kit يقرأ النص بنجاح (لا fallback)
+- [ ] الترجمة تعمل كالمعتاد
+
+### 17. Logs OCR العربي
+```bash
+adb logcat -s NabdScreenTranslate | grep -i "arabic\|hybrid\|engine"
+```
+
+#### Logs المتوقعة (نص عربي):
+```
+D/NabdScreenTranslate: HybridOCR source language set to: auto
+D/NabdScreenTranslate: Selected OCR engine: Hybrid (source=auto)
+D/NabdScreenTranslate: Hybrid: MLKit found insufficient text (0 chars), fallback to Arabic OCR
+D/NabdScreenTranslate: Arabic OCR started
+D/NabdScreenTranslate: Arabic OCR completed - found 3 text blocks (156 chars), confidence: 72%
+D/NabdScreenTranslate: Hybrid: Using Arabic OCR result (156 chars > 0 chars)
+```
+
+#### Logs المتوقعة (نص إنجليزي):
+```
+D/NabdScreenTranslate: HybridOCR source language set to: auto
+D/NabdScreenTranslate: Selected OCR engine: Hybrid (source=auto)
+D/NabdScreenTranslate: Hybrid: MLKit found sufficient text (263 chars, 5 blocks)
+```
 
 ---
 
