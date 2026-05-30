@@ -7,8 +7,9 @@
 | **المرحلة** | Alpha 2 |
 | **رقم النسخة** | 1.0.0 (versionCode 1) |
 | **تاريخ البناء** | 2026-05-30 |
-| **APK** | `app/build/outputs/apk/debug/app-debug.apk` |
-| **حجم APK** | ~142.5 MB (debug) |
+| **APK (arm64 release)** | `release-apks/nabd-screen-translate-alpha2-release-arm64.apk` |
+| **حجم APK (arm64 release)** | ~37.3 MB |
+| **حجم APK (universal debug)** | ~142.5 MB |
 | **Min SDK** | Android 8.0 (API 26) |
 | **Target SDK** | Android 14 (API 34) |
 

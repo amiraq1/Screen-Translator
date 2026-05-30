@@ -34,11 +34,15 @@ Real-time on-device screen translation for Android. Capture any text on screen, 
 ## How to Build
 
 ```bash
-# Debug build
-./gradlew clean assembleDebug
+# Debug build (all ABIs, no minification)
+./gradlew assembleDebug
 
-# APK location
-app/build/outputs/apk/debug/app-debug.apk
+# Release build (minified, ABI splits)
+./gradlew assembleRelease
+
+# APK locations
+app/build/outputs/apk/release/app-arm64-v8a-release.apk   # 37 MB — recommended
+app/build/outputs/apk/debug/app-universal-debug.apk        # 142 MB — all ABIs
 ```
 
 **Requirements:**
@@ -85,6 +89,7 @@ adb shell appops set com.ammar.nabdscreentranslate SYSTEM_ALERT_WINDOW allow
 - Android 14+ requires fresh MediaProjection consent per capture
 - First translation is slow (ML Kit model download ~30MB)
 - Debug APK is large (~142MB) due to bundled ML Kit models + Tesseract native libs
+- Release arm64 APK is ~37MB (recommended for sharing)
 - DRM-protected content cannot be captured
 - Arabic OCR accuracy depends on text clarity and font size
 
