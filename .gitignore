@@ -17,3 +17,6 @@ Thumbs.db
 
 # Temp downloads
 gradle-8.5-bin.zip
+
+# Release APKs (large binaries)
+release-apks/
