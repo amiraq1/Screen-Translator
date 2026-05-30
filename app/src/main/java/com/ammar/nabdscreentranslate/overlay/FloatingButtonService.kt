@@ -234,9 +234,11 @@ class FloatingButtonService : Service() {
             var bitmap: android.graphics.Bitmap? = null
             try {
                 // Step 1: Capture screenshot
+                val captureStart = System.currentTimeMillis()
                 Log.d(TAG, "جارٍ التقاط الشاشة...")
                 bitmap = screenCaptureManager.captureScreen()
-                Log.d(TAG, "Screen captured: ${bitmap.width}x${bitmap.height}")
+                val captureDuration = System.currentTimeMillis() - captureStart
+                Log.d(TAG, "Screen captured: ${bitmap.width}x${bitmap.height} (${captureDuration}ms)")
 
                 // Step 2: Read settings
                 val sourceLang = settingsDataStore.sourceLang.first()
@@ -248,12 +250,15 @@ class FloatingButtonService : Service() {
 
                 // Step 4: OCR + Translation via UseCase
                 Log.d(TAG, "جارٍ قراءة النص...")
+                val translateStart = System.currentTimeMillis()
                 val result = translateScreenUseCase.executeWithBlocks(
                     bitmap = bitmap,
                     sourceLang = sourceLang,
                     targetLang = targetLang,
                     region = region
                 )
+                val translateDuration = System.currentTimeMillis() - translateStart
+                Log.d(TAG, "OCR+Translation total: ${translateDuration}ms")
 
                 // Step 4: Show result
                 withContext(Dispatchers.Main) {

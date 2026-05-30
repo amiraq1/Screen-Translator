@@ -35,6 +35,7 @@ object BitmapUtils {
      * Prepare bitmap specifically for Arabic OCR (Tesseract).
      * Applies: grayscale + contrast boost + upscale for small text.
      * Tesseract works best with high-contrast grayscale images at ~300 DPI equivalent.
+     * Memory-safe: caps output at 4096x4096 to prevent OOM.
      */
     fun prepareForArabicOcr(bitmap: Bitmap): Bitmap {
         // Step 1: Upscale if text might be too small
@@ -45,11 +46,25 @@ object BitmapUtils {
             else -> 1.0f
         }
 
-        val scaled = if (scaleFactor > 1.0f) {
+        // Cap maximum dimensions to prevent OOM
+        val maxDim = 4096
+        val cappedScale = if (scaleFactor > 1.0f) {
+            val targetW = (bitmap.width * scaleFactor).toInt()
+            val targetH = (bitmap.height * scaleFactor).toInt()
+            if (targetW > maxDim || targetH > maxDim) {
+                minOf(maxDim.toFloat() / bitmap.width, maxDim.toFloat() / bitmap.height)
+            } else {
+                scaleFactor
+            }
+        } else {
+            scaleFactor
+        }
+
+        val scaled = if (cappedScale > 1.0f) {
             Bitmap.createScaledBitmap(
                 bitmap,
-                (bitmap.width * scaleFactor).toInt(),
-                (bitmap.height * scaleFactor).toInt(),
+                (bitmap.width * cappedScale).toInt(),
+                (bitmap.height * cappedScale).toInt(),
                 true
             )
         } else {

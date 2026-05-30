@@ -30,10 +30,13 @@ class HybridOcrEngine(context: Context) : OcrEngine {
     }
 
     override suspend fun recognizeText(bitmap: Bitmap): List<TextBlockResult> {
+        Log.d(TAG, "OCR input: ${bitmap.width}x${bitmap.height} (${bitmap.byteCount / 1024}KB)")
+
         return when (currentSourceLang) {
             "ar" -> {
                 Log.d(TAG, "Selected OCR engine: Arabic (source=ar)")
-                recognizeArabic(bitmap)
+                timedRecognize("Arabic") { arabicEngine.recognizeText(bitmap) }
+                    ?: fallbackMlKit(bitmap)
             }
             "auto" -> {
                 Log.d(TAG, "Selected OCR engine: Hybrid (source=auto)")
@@ -41,23 +44,20 @@ class HybridOcrEngine(context: Context) : OcrEngine {
             }
             else -> {
                 Log.d(TAG, "Selected OCR engine: MLKit (source=$currentSourceLang)")
-                recognizeWithMlKit(bitmap)
+                timedRecognize("MLKit") { mlKitEngine.recognizeText(bitmap) }
+                    ?: emptyList()
             }
         }
     }
 
-    private suspend fun recognizeArabic(bitmap: Bitmap): List<TextBlockResult> {
+    private suspend fun fallbackMlKit(bitmap: Bitmap): List<TextBlockResult> {
+        Log.d(TAG, "Arabic OCR failed, trying MLKit as fallback")
         return try {
-            arabicEngine.recognizeText(bitmap)
-        } catch (e: Exception) {
-            Log.e(TAG, "Arabic OCR failed: ${e.message}, trying MLKit as fallback")
-            // Fallback to ML Kit if Arabic engine fails
             mlKitEngine.recognizeText(bitmap)
+        } catch (e: Exception) {
+            Log.e(TAG, "MLKit fallback also failed: ${e.message}")
+            emptyList()
         }
-    }
-
-    private suspend fun recognizeWithMlKit(bitmap: Bitmap): List<TextBlockResult> {
-        return mlKitEngine.recognizeText(bitmap)
     }
 
     /**
@@ -68,22 +68,30 @@ class HybridOcrEngine(context: Context) : OcrEngine {
      */
     private suspend fun recognizeHybrid(bitmap: Bitmap): List<TextBlockResult> {
         // Step 1: Try ML Kit
+        val mlKitStart = System.currentTimeMillis()
         val mlKitResults = try {
             mlKitEngine.recognizeText(bitmap)
         } catch (e: Exception) {
             Log.w(TAG, "MLKit OCR failed in hybrid mode: ${e.message}")
             emptyList()
         }
+        val mlKitDuration = System.currentTimeMillis() - mlKitStart
 
         val totalChars = mlKitResults.sumOf { it.text.length }
         val mlKitText = mlKitResults.joinToString(" ") { it.text }
+        val avgConfidence = mlKitResults.mapNotNull { it.confidence }.average().let {
+            if (it.isNaN()) 0.0 else it
+        }
+
+        Log.d(TAG, "MLKit OCR: ${mlKitResults.size} blocks, $totalChars chars, " +
+                "confidence=${(avgConfidence * 100).toInt()}%, duration=${mlKitDuration}ms")
 
         // Check if ML Kit detected Arabic characters (it can't read them but may detect blocks)
         val hasArabicChars = mlKitText.any { it in '\u0600'..'\u06FF' || it in '\u0750'..'\u077F' }
 
         // If ML Kit found reasonable non-Arabic text, use it
         if (mlKitResults.isNotEmpty() && totalChars >= MIN_CHARS_THRESHOLD && !hasArabicChars) {
-            Log.d(TAG, "Hybrid: MLKit found sufficient text ($totalChars chars, ${mlKitResults.size} blocks)")
+            Log.d(TAG, "Hybrid result: MLKit ✓ ($totalChars chars, ${mlKitDuration}ms)")
             return mlKitResults
         }
 
@@ -95,25 +103,59 @@ class HybridOcrEngine(context: Context) : OcrEngine {
         }
         Log.d(TAG, "Hybrid: Fallback to Arabic OCR — $reason")
 
+        val arabicStart = System.currentTimeMillis()
         val arabicResults = try {
             arabicEngine.recognizeText(bitmap)
         } catch (e: Exception) {
             Log.w(TAG, "Arabic OCR fallback failed: ${e.message}")
             emptyList()
         }
+        val arabicDuration = System.currentTimeMillis() - arabicStart
 
         val arabicChars = arabicResults.sumOf { it.text.length }
+        val arabicConfidence = arabicResults.mapNotNull { it.confidence }.average().let {
+            if (it.isNaN()) 0.0 else it
+        }
+
+        Log.d(TAG, "Arabic OCR: ${arabicResults.size} blocks, $arabicChars chars, " +
+                "confidence=${(arabicConfidence * 100).toInt()}%, duration=${arabicDuration}ms")
 
         // Return whichever found more text
         return if (arabicChars > totalChars) {
-            Log.d(TAG, "Hybrid: Using Arabic OCR result ($arabicChars chars > $totalChars chars)")
+            Log.d(TAG, "Hybrid result: Arabic ✓ ($arabicChars chars, total=${mlKitDuration + arabicDuration}ms)")
             arabicResults
         } else if (mlKitResults.isNotEmpty()) {
-            Log.d(TAG, "Hybrid: Keeping MLKit result ($totalChars chars >= $arabicChars chars)")
+            Log.d(TAG, "Hybrid result: MLKit ✓ (kept, $totalChars chars >= $arabicChars chars)")
             mlKitResults
         } else {
-            Log.d(TAG, "Hybrid: No text found by either engine")
-            arabicResults // Return whatever we have (could be empty)
+            Log.d(TAG, "Hybrid result: No text found (total=${mlKitDuration + arabicDuration}ms)")
+            arabicResults
+        }
+    }
+
+    /**
+     * Timed wrapper for OCR recognition with logging.
+     * Returns null if the engine throws an exception.
+     */
+    private suspend fun timedRecognize(
+        engineName: String,
+        block: suspend () -> List<TextBlockResult>
+    ): List<TextBlockResult>? {
+        val start = System.currentTimeMillis()
+        return try {
+            val results = block()
+            val duration = System.currentTimeMillis() - start
+            val chars = results.sumOf { it.text.length }
+            val confidence = results.mapNotNull { it.confidence }.average().let {
+                if (it.isNaN()) 0.0 else it
+            }
+            Log.d(TAG, "$engineName OCR: ${results.size} blocks, $chars chars, " +
+                    "confidence=${(confidence * 100).toInt()}%, duration=${duration}ms")
+            results
+        } catch (e: Exception) {
+            val duration = System.currentTimeMillis() - start
+            Log.e(TAG, "$engineName OCR failed after ${duration}ms: ${e.message}")
+            null
         }
     }
 
