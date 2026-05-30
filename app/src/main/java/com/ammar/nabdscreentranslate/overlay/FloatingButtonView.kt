@@ -45,10 +45,10 @@ class FloatingButtonView(context: Context) : FrameLayout(context) {
     private val LONG_PRESS_TIMEOUT = 500L
     private var isLongPressTriggered = false
 
-    // Colors - Dark Liquid Lens
-    private val colorBg = 0xFF0F1115.toInt()       // Ink800
-    private val colorBorder = 0xFF22D3EE.toInt()   // Cyan400
-    private val colorIcon = 0xFF22D3EE.toInt()     // Cyan400
+    // Colors - Ember on Graphite
+    private val colorBg = 0xFF131110.toInt()       // Ink800 (warm)
+    private val colorBorder = 0xFFFF7000.toInt()   // Ember500
+    private val colorIcon = 0xFFFF7000.toInt()     // Ember500
 
     init {
         buttonSizePx = (BUTTON_SIZE_DP * density).toInt()

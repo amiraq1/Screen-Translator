@@ -90,12 +90,13 @@ fun HistoryScreen(
                     shape = RoundedCornerShape(12.dp),
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Cyan400,
+                        focusedBorderColor = Ember500,
                         unfocusedBorderColor = GlassBorder,
                         focusedContainerColor = Glass800.copy(alpha = 0.5f),
                         unfocusedContainerColor = Glass800.copy(alpha = 0.3f),
                         focusedTextColor = TextWhite,
-                        unfocusedTextColor = TextLight
+                        unfocusedTextColor = TextLight,
+                        cursorColor = Ember500
                     )
                 )
 
@@ -106,24 +107,33 @@ fun HistoryScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                Icons.Outlined.Translate,
-                                contentDescription = null,
-                                modifier = Modifier.size(56.dp),
-                                tint = TextDim.copy(alpha = 0.4f)
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(96.dp)
+                                    .clip(RoundedCornerShape(28.dp))
+                                    .background(EmberSoft),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Translate,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(44.dp),
+                                    tint = Ember400.copy(alpha = 0.7f)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(20.dp))
                             Text(
                                 text = "لا توجد ترجمات بعد",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = TextMuted
+                                style = MaterialTheme.typography.titleMedium,
+                                color = TextLight
                             )
-                            Spacer(modifier = Modifier.height(6.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = "اضغط الزر العائم لترجمة أي نص يظهر على الشاشة",
-                                style = MaterialTheme.typography.bodySmall,
+                                style = MaterialTheme.typography.bodyMedium,
                                 color = TextDim,
-                                textAlign = TextAlign.Center
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 40.dp)
                             )
                         }
                     }
@@ -215,7 +225,7 @@ private fun HistoryItemCard(item: TranslationHistoryEntity, onDelete: () -> Unit
                     onClick = { clipboardManager.setText(AnnotatedString(item.translatedText)) },
                     modifier = Modifier.size(32.dp)
                 ) {
-                    Icon(Icons.Outlined.ContentCopy, "نسخ", Modifier.size(16.dp), tint = Cyan400)
+                    Icon(Icons.Outlined.ContentCopy, "نسخ", Modifier.size(16.dp), tint = Ember400)
                 }
 
                 IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {

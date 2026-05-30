@@ -248,13 +248,15 @@ class FloatingButtonService : Service() {
                 // Step 3: Set OCR engine language for hybrid selection
                 ocrEngine.setSourceLanguage(sourceLang)
 
-                // Step 4: OCR + Translation via UseCase
+                // Step 4: OCR + per-block Translation for in-place overlay
                 Log.d(TAG, "جارٍ قراءة النص...")
                 val translateStart = System.currentTimeMillis()
-                val result = translateScreenUseCase.executeWithBlocks(
+                val result = translateScreenUseCase.executeInPlace(
                     bitmap = bitmap,
                     sourceLang = sourceLang,
                     targetLang = targetLang,
+                    screenWidth = bitmap.width,
+                    screenHeight = bitmap.height,
                     region = region
                 )
                 val translateDuration = System.currentTimeMillis() - translateStart
@@ -263,36 +265,54 @@ class FloatingButtonService : Service() {
                 // Step 4: Show result
                 withContext(Dispatchers.Main) {
                     result.fold(
-                        onSuccess = { screenResult ->
-                            Log.d(TAG, "جارٍ الترجمة... → Translation SUCCESS")
-                            lastTranslationResult = screenResult.originalText to screenResult.translatedText
+                        onSuccess = { inPlaceResult ->
+                            Log.d(TAG, "جارٍ الترجمة... → Translation SUCCESS (${inPlaceResult.blocks.size} blocks, hasPositions=${inPlaceResult.hasPositions})")
+                            lastTranslationResult = inPlaceResult.originalText to inPlaceResult.translatedText
 
                             // Hide any existing overlay before showing new one
                             translationOverlayManager?.hide()
 
-                            translationOverlayManager?.showTranslation(
-                                originalText = screenResult.originalText,
-                                translatedText = screenResult.translatedText,
-                                onCopy = { /* copy handled internally in overlay */ },
-                                onSave = {
-                                    serviceScope.launch {
-                                        saveToHistory(
-                                            screenResult.originalText,
-                                            screenResult.translatedText,
-                                            sourceLang,
-                                            targetLang
-                                        )
-                                    }
-                                },
-                                onClose = {
-                                    translationOverlayManager?.hide()
-                                }
-                            )
+                            if (inPlaceResult.hasPositions) {
+                                // Google Lens style: draw translations over each block in place
+                                translationOverlayManager?.showInPlaceTranslation(
+                                    blocks = inPlaceResult.blocks,
+                                    onCopy = { /* handled internally */ },
+                                    onSave = {
+                                        serviceScope.launch {
+                                            saveToHistory(
+                                                inPlaceResult.originalText,
+                                                inPlaceResult.translatedText,
+                                                sourceLang,
+                                                targetLang
+                                            )
+                                        }
+                                    },
+                                    onClose = { translationOverlayManager?.hide() }
+                                )
+                            } else {
+                                // No position info (e.g. Arabic/Tesseract) → fall back to bottom card
+                                translationOverlayManager?.showTranslation(
+                                    originalText = inPlaceResult.originalText,
+                                    translatedText = inPlaceResult.translatedText,
+                                    onCopy = { /* handled internally */ },
+                                    onSave = {
+                                        serviceScope.launch {
+                                            saveToHistory(
+                                                inPlaceResult.originalText,
+                                                inPlaceResult.translatedText,
+                                                sourceLang,
+                                                targetLang
+                                            )
+                                        }
+                                    },
+                                    onClose = { translationOverlayManager?.hide() }
+                                )
+                            }
 
                             // Auto-save to history
                             saveToHistory(
-                                screenResult.originalText,
-                                screenResult.translatedText,
+                                inPlaceResult.originalText,
+                                inPlaceResult.translatedText,
                                 sourceLang,
                                 targetLang
                             )

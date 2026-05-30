@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -16,6 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
@@ -43,159 +45,128 @@ fun HomeScreen(
     onRequestOverlayPermission: () -> Unit
 ) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .background(Ink900)
         ) {
-            Spacer(modifier = Modifier.height(48.dp))
+            // ─── Atmospheric ember glow backdrop ─────────────────────
+            AmbientGlow(isActive = uiState.isFloatingActive)
 
-            // ─── Hero Section ────────────────────────────────────────
-            Text(
-                text = "ترجمة الشاشة الفورية",
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 28.sp,
-                    letterSpacing = (-0.5).sp
-                ),
-                color = TextWhite
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "التقط النص من أي تطبيق وترجمه فورًا على جهازك",
-                style = MaterialTheme.typography.bodyMedium,
-                color = TextMuted,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(36.dp))
-
-            // ─── Main Action Button ──────────────────────────────────
-            MainActionButton(
-                isActive = uiState.isFloatingActive,
-                onClick = {
-                    if (!uiState.hasOverlayPermission) {
-                        onRequestOverlayPermission()
-                    } else {
-                        onToggleFloating()
-                    }
-                }
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = if (uiState.isFloatingActive) "إيقاف الزر العائم" else "تشغيل الزر العائم",
-                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-                color = if (uiState.isFloatingActive) Success400 else TextMuted
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // ─── Status Card ─────────────────────────────────────────
-            StatusCard(isActive = uiState.isFloatingActive)
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // ─── Language Selection ──────────────────────────────────
-            LensCard {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Outlined.Language,
-                            contentDescription = null,
-                            tint = Cyan400,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "إعدادات اللغة",
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = TextLight
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    LanguageDropdown(
-                        label = "لغة المصدر",
-                        selectedCode = uiState.sourceLang,
-                        languages = LanguageMapper.supportedLanguages,
-                        onSelected = onSourceLangChanged
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    LanguageDropdown(
-                        label = "لغة الهدف",
-                        selectedCode = uiState.targetLang,
-                        languages = LanguageMapper.targetLanguages,
-                        onSelected = onTargetLangChanged
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // ─── Quick Actions ───────────────────────────────────────
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                QuickAction(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Outlined.CloudDownload,
-                    label = "تحميل النموذج",
+                Spacer(modifier = Modifier.height(28.dp))
+
+                // ─── Brand lockup ────────────────────────────────────
+                BrandHeader(onSettings = onNavigateToSettings)
+
+                Spacer(modifier = Modifier.height(40.dp))
+
+                // ─── Hero ────────────────────────────────────────────
+                Text(
+                    text = "ترجمة الشاشة الفورية",
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = TextWhite,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "التقط أي نص على شاشتك وترجمه فورًا — تتم المعالجة على جهازك",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextMuted,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+
+                Spacer(modifier = Modifier.height(40.dp))
+
+                // ─── Main pulse action ───────────────────────────────
+                MainActionButton(
+                    isActive = uiState.isFloatingActive,
+                    onClick = {
+                        if (!uiState.hasOverlayPermission) onRequestOverlayPermission()
+                        else onToggleFloating()
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                Text(
+                    text = if (uiState.isFloatingActive) "اضغط لإيقاف الزر العائم" else "اضغط لتشغيل الزر العائم",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (uiState.isFloatingActive) Success400 else TextLight
+                )
+
+                Spacer(modifier = Modifier.height(36.dp))
+
+                // ─── Status pill ─────────────────────────────────────
+                StatusBanner(isActive = uiState.isFloatingActive)
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // ─── Language selection ──────────────────────────────
+                SectionCard {
+                    Column(modifier = Modifier.padding(18.dp)) {
+                        SectionHeader(icon = Icons.Outlined.Translate, title = "إعدادات اللغة")
+                        Spacer(modifier = Modifier.height(16.dp))
+                        LanguageDropdown(
+                            label = "لغة المصدر",
+                            selectedCode = uiState.sourceLang,
+                            languages = LanguageMapper.supportedLanguages,
+                            onSelected = onSourceLangChanged
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        LanguageDropdown(
+                            label = "لغة الهدف",
+                            selectedCode = uiState.targetLang,
+                            languages = LanguageMapper.targetLanguages,
+                            onSelected = onTargetLangChanged
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // ─── Model download (full-width, with real loading state) ─
+                ModelDownloadCard(
                     isLoading = uiState.isDownloadingModel,
-                    statusText = uiState.downloadMessage,
+                    message = uiState.downloadMessage,
                     onClick = onDownloadModels
                 )
-                QuickAction(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Outlined.History,
-                    label = "السجل",
-                    onClick = onNavigateToHistory
-                )
-                QuickAction(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Outlined.Settings,
-                    label = "الإعدادات",
-                    onClick = onNavigateToSettings
-                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // ─── Quick actions ───────────────────────────────────
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    QuickAction(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Outlined.History,
+                        label = "السجل",
+                        onClick = onNavigateToHistory
+                    )
+                    QuickAction(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Outlined.Tune,
+                        label = "الإعدادات",
+                        onClick = onNavigateToSettings
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // ─── Privacy badge ───────────────────────────────────
+                PrivacyBadge()
+
+                Spacer(modifier = Modifier.height(28.dp))
             }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // ─── Privacy Badge ───────────────────────────────────────
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Glass800.copy(alpha = 0.6f))
-                    .border(1.dp, GlassBorder.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Outlined.Shield,
-                    contentDescription = "خصوصية",
-                    tint = Success400,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "لا يتم حفظ صور الشاشة ولا إرسالها لأي خادم",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextMuted
-                )
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
@@ -203,108 +174,333 @@ fun HomeScreen(
 // ─── Components ──────────────────────────────────────────────────────────────
 
 @Composable
-private fun MainActionButton(isActive: Boolean, onClick: () -> Unit) {
-    val scale by animateFloatAsState(
-        targetValue = if (isActive) 1.05f else 1f,
-        animationSpec = spring(dampingRatio = 0.6f),
-        label = "scale"
+private fun AmbientGlow(isActive: Boolean) {
+    val transition = rememberInfiniteTransition(label = "glow")
+    val glowAlpha by transition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 0.7f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "glowAlpha"
     )
+    val accent = if (isActive) Success400 else Ember500
 
-    val borderColor by animateColorAsState(
-        targetValue = if (isActive) Success400 else Cyan400,
-        label = "border"
-    )
-
-    Box(
-        modifier = Modifier
-            .size(130.dp)
-            .scale(scale),
-        contentAlignment = Alignment.Center
-    ) {
-        // Outer glow ring
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Top ember bloom behind the hero
         Box(
             modifier = Modifier
-                .size(130.dp)
-                .clip(CircleShape)
+                .align(Alignment.TopCenter)
+                .offset(y = 110.dp)
+                .size(360.dp)
+                .blur(120.dp)
                 .background(
                     Brush.radialGradient(
-                        colors = listOf(
-                            borderColor.copy(alpha = 0.15f),
-                            Color.Transparent
-                        )
-                    )
+                        colors = listOf(accent.copy(alpha = glowAlpha * 0.5f), Color.Transparent)
+                    ),
+                    CircleShape
                 )
         )
-
-        // Button
-        Button(
-            onClick = onClick,
-            modifier = Modifier.size(110.dp),
-            shape = CircleShape,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (isActive) Success400.copy(alpha = 0.15f) else Cyan400.copy(alpha = 0.12f)
-            ),
-            border = ButtonDefaults.outlinedButtonBorder.copy(
-                brush = Brush.linearGradient(listOf(borderColor, borderColor.copy(alpha = 0.4f)))
-            ),
-            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
-        ) {
-            Icon(
-                imageVector = if (isActive) Icons.Filled.Stop else Icons.Filled.Translate,
-                contentDescription = if (isActive) "إيقاف" else "تشغيل",
-                modifier = Modifier.size(40.dp),
-                tint = borderColor
-            )
-        }
     }
 }
 
 @Composable
-private fun StatusCard(isActive: Boolean) {
-    LensCard {
-        Row(
+private fun BrandHeader(onSettings: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Pulse mark
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .size(36.dp)
+                .clip(RoundedCornerShape(11.dp))
+                .background(
+                    Brush.linearGradient(listOf(Ember400, Ember600))
+                ),
+            contentAlignment = Alignment.Center
         ) {
-            // Status dot
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(if (isActive) Success400 else TextDim)
+            Icon(
+                Icons.Filled.GraphicEq,
+                contentDescription = null,
+                tint = Ink900,
+                modifier = Modifier.size(20.dp)
             )
-            Spacer(modifier = Modifier.width(10.dp))
+        }
+        Spacer(modifier = Modifier.width(10.dp))
+        Column {
             Text(
-                text = if (isActive) "الزر العائم نشط" else "الزر العائم متوقف",
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                color = if (isActive) Success400 else TextMuted,
-                modifier = Modifier.weight(1f)
+                text = "نبض",
+                style = MaterialTheme.typography.titleMedium,
+                color = TextWhite
             )
             Text(
-                text = if (isActive) "يعمل" else "معطّل",
+                text = "ترجمة الشاشة",
                 style = MaterialTheme.typography.labelSmall,
                 color = TextDim
             )
         }
+        Spacer(modifier = Modifier.weight(1f))
+        IconButton(onClick = onSettings) {
+            Icon(Icons.Outlined.Settings, contentDescription = "الإعدادات", tint = TextMuted)
+        }
     }
 }
 
 @Composable
-fun LensCard(
+private fun MainActionButton(isActive: Boolean, onClick: () -> Unit) {
+    val transition = rememberInfiniteTransition(label = "pulse")
+    val ringScale by transition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.35f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "ringScale"
+    )
+    val ringAlpha by transition.animateFloat(
+        initialValue = 0.5f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "ringAlpha"
+    )
+
+    val accent = if (isActive) Success400 else Ember500
+    val pressScale by animateFloatAsState(
+        targetValue = if (isActive) 1.04f else 1f,
+        animationSpec = spring(dampingRatio = 0.55f),
+        label = "press"
+    )
+
+    Box(
+        modifier = Modifier.size(180.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        // Expanding pulse ring (the "نبض")
+        Box(
+            modifier = Modifier
+                .size(132.dp)
+                .scale(ringScale)
+                .clip(CircleShape)
+                .background(accent.copy(alpha = ringAlpha))
+        )
+        // Soft static glow
+        Box(
+            modifier = Modifier
+                .size(150.dp)
+                .clip(CircleShape)
+                .background(
+                    Brush.radialGradient(
+                        listOf(accent.copy(alpha = 0.18f), Color.Transparent)
+                    )
+                )
+        )
+        // Core button
+        Box(
+            modifier = Modifier
+                .size(116.dp)
+                .scale(pressScale)
+                .clip(CircleShape)
+                .background(
+                    Brush.linearGradient(
+                        colors = if (isActive)
+                            listOf(Glass700, Glass800)
+                        else
+                            listOf(Ember400, Ember600)
+                    )
+                )
+                .border(
+                    width = 1.5.dp,
+                    brush = Brush.linearGradient(listOf(accent, accent.copy(alpha = 0.3f))),
+                    shape = CircleShape
+                )
+                .then(Modifier)
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (isActive) Icons.Filled.Stop else Icons.Filled.CenterFocusStrong,
+                contentDescription = if (isActive) "إيقاف" else "تشغيل",
+                modifier = Modifier.size(46.dp),
+                tint = if (isActive) Success400 else Ink900
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatusBanner(isActive: Boolean) {
+    val bg = if (isActive) Success400.copy(alpha = 0.1f) else Glass800.copy(alpha = 0.7f)
+    val border = if (isActive) Success400.copy(alpha = 0.45f) else GlassBorder.copy(alpha = 0.5f)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(bg)
+            .border(1.dp, border, RoundedCornerShape(14.dp))
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        PulsingDot(active = isActive)
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = if (isActive) "الزر العائم نشط" else "الزر العائم متوقف",
+            style = MaterialTheme.typography.titleSmall,
+            color = if (isActive) Success400 else TextLight,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = if (isActive) "يعمل الآن" else "معطّل",
+            style = MaterialTheme.typography.labelMedium,
+            color = if (isActive) Success400.copy(alpha = 0.8f) else TextDim
+        )
+    }
+}
+
+@Composable
+private fun PulsingDot(active: Boolean) {
+    if (!active) {
+        Box(
+            modifier = Modifier
+                .size(9.dp)
+                .clip(CircleShape)
+                .background(TextDim)
+        )
+        return
+    }
+    val transition = rememberInfiniteTransition(label = "dot")
+    val alpha by transition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0.3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(900, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "dotAlpha"
+    )
+    Box(
+        modifier = Modifier
+            .size(9.dp)
+            .clip(CircleShape)
+            .background(Success400.copy(alpha = alpha))
+    )
+}
+
+@Composable
+fun SectionCard(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .border(1.dp, GlassBorder.copy(alpha = 0.5f), RoundedCornerShape(14.dp)),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Glass800.copy(alpha = 0.7f)),
+            .border(1.dp, GlassBorder.copy(alpha = 0.55f), RoundedCornerShape(18.dp)),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Glass800.copy(alpha = 0.75f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         content()
+    }
+}
+
+@Composable
+private fun SectionHeader(icon: ImageVector, title: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(30.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(EmberSoft),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = Ember400, modifier = Modifier.size(17.dp))
+        }
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            color = TextWhite
+        )
+    }
+}
+
+@Composable
+private fun ModelDownloadCard(
+    isLoading: Boolean,
+    message: String?,
+    onClick: () -> Unit
+) {
+    val success = message?.contains("✓") == true
+    SectionCard {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(30.dp)
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(EmberSoft),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = Ember400
+                        )
+                    } else {
+                        Icon(
+                            Icons.Outlined.CloudDownload,
+                            contentDescription = null,
+                            tint = Ember400,
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "نماذج الترجمة",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = TextLight
+                    )
+                    Text(
+                        text = when {
+                            isLoading -> "جارٍ التحميل..."
+                            message != null -> message
+                            else -> "حمّلها مرة واحدة لتعمل دون إنترنت"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = when {
+                            success -> Success400
+                            message != null && !isLoading -> Error400
+                            else -> TextDim
+                        }
+                    )
+                }
+                Button(
+                    onClick = onClick,
+                    enabled = !isLoading,
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Ember500,
+                        contentColor = Ink900,
+                        disabledContainerColor = Glass600
+                    )
+                ) {
+                    Text(
+                        text = if (isLoading) "..." else "تحميل",
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -314,49 +510,62 @@ private fun QuickAction(
     modifier: Modifier = Modifier,
     icon: ImageVector,
     label: String,
-    isLoading: Boolean = false,
-    statusText: String? = null,
     onClick: () -> Unit
 ) {
     Card(
         onClick = onClick,
         modifier = modifier
-            .border(1.dp, GlassBorder.copy(alpha = 0.4f), RoundedCornerShape(12.dp)),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Glass800.copy(alpha = 0.5f)),
+            .border(1.dp, GlassBorder.copy(alpha = 0.5f), RoundedCornerShape(16.dp)),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Glass800.copy(alpha = 0.6f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 16.dp, horizontal = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(vertical = 18.dp, horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = if (isLoading) Amber400 else Cyan400,
-                modifier = Modifier.size(22.dp)
+                tint = Ember400,
+                modifier = Modifier.size(20.dp)
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.width(10.dp))
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = TextLight,
-                textAlign = TextAlign.Center,
-                maxLines = 1
+                style = MaterialTheme.typography.titleSmall,
+                color = TextLight
             )
-            if (statusText != null) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = statusText,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                    color = if (statusText.contains("✓")) Success400 else Amber400,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1
-                )
-            }
         }
+    }
+}
+
+@Composable
+private fun PrivacyBadge() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(Success400.copy(alpha = 0.06f))
+            .border(1.dp, Success400.copy(alpha = 0.25f), RoundedCornerShape(14.dp))
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            Icons.Outlined.VerifiedUser,
+            contentDescription = "خصوصية",
+            tint = Success400,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(
+            text = "لا تُحفظ صور الشاشة ولا تُرسل لأي خادم",
+            style = MaterialTheme.typography.bodySmall,
+            color = TextLight
+        )
     }
 }
 
@@ -384,27 +593,35 @@ fun LanguageDropdown(
             modifier = Modifier
                 .fillMaxWidth()
                 .menuAnchor(),
-            shape = RoundedCornerShape(10.dp),
+            shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Cyan400,
+                focusedBorderColor = Ember500,
                 unfocusedBorderColor = GlassBorder,
-                focusedContainerColor = Glass700.copy(alpha = 0.3f),
-                unfocusedContainerColor = Glass700.copy(alpha = 0.2f),
+                focusedContainerColor = Glass700.copy(alpha = 0.4f),
+                unfocusedContainerColor = Glass700.copy(alpha = 0.25f),
                 focusedTextColor = TextWhite,
-                unfocusedTextColor = TextLight
+                unfocusedTextColor = TextLight,
+                focusedLabelColor = Ember400,
+                cursorColor = Ember500
             ),
-            textStyle = MaterialTheme.typography.bodyMedium
+            textStyle = MaterialTheme.typography.bodyLarge
         )
 
         ExposedDropdownMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false }
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.background(Glass800)
         ) {
             languages.forEach { lang ->
                 DropdownMenuItem(
                     text = {
-                        Row {
-                            Text(lang.nativeName, modifier = Modifier.weight(1f))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                lang.nativeName,
+                                modifier = Modifier.weight(1f),
+                                color = if (lang.code == selectedCode) Ember400 else TextLight,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
                             Text(
                                 lang.displayName,
                                 color = TextDim,

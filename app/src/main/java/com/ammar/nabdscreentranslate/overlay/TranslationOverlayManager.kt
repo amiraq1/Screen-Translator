@@ -9,10 +9,12 @@ import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import com.ammar.nabdscreentranslate.domain.InPlaceBlock
 
 /**
  * Manages the floating translation result overlay.
@@ -25,18 +27,121 @@ class TranslationOverlayManager(
 ) {
 
     private var overlayView: View? = null
+    private var inPlaceView: View? = null
+    private var inPlaceCloseButton: View? = null
     private var isVisible = false
 
-    // Colors matching Dark Liquid Lens theme
-    private val colorBg = 0xF00F1115.toInt()        // Ink800 with high alpha
-    private val colorBorder = 0xFF2E3442.toInt()     // GlassBorder
-    private val colorCyan = 0xFF22D3EE.toInt()       // Cyan400
+    // Colors matching Ember on Graphite theme
+    private val colorBg = 0xF0131110.toInt()        // Ink800 (warm) high alpha
+    private val colorBorder = 0xFF3A322C.toInt()     // GlassBorder
+    private val colorCyan = 0xFFFF7000.toInt()       // Ember500 (primary accent)
     private val colorSuccess = 0xFF4ADE80.toInt()    // Success400
     private val colorError = 0xFFF87171.toInt()      // Error400
-    private val colorTextWhite = 0xFFF1F5F9.toInt()  // TextWhite
-    private val colorTextMuted = 0xFF94A3B8.toInt()  // TextMuted
-    private val colorTextDim = 0xFF64748B.toInt()    // TextDim
-    private val colorGlass = 0xFF1A1E28.toInt()      // Glass800
+    private val colorTextWhite = 0xFFFBF7F4.toInt()  // TextWhite (warm)
+    private val colorTextMuted = 0xFFA89B90.toInt()  // TextMuted (warm)
+    private val colorTextDim = 0xFF6F645B.toInt()    // TextDim (warm)
+    private val colorGlass = 0xFF1C1815.toInt()      // Glass800 (warm)
+
+    @SuppressLint("InflateParams")
+    fun showInPlaceTranslation(
+        blocks: List<InPlaceBlock>,
+        onCopy: () -> Unit,
+        onSave: () -> Unit,
+        onClose: () -> Unit
+    ) {
+        Log.d("NabdScreenTranslate", "Showing in-place translation overlay (${blocks.size} blocks)")
+        hide()
+
+        val d = context.resources.displayMetrics.density
+
+        // Full-screen in-place view that draws translated text over each block
+        val inPlace = InPlaceTranslationView(context, blocks) { hide(); onClose() }
+        inPlaceView = inPlace
+
+        val inPlaceParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        )
+
+        // Floating action bar (close / copy / save) anchored at top
+        val actionBar = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding((12 * d).toInt(), (8 * d).toInt(), (12 * d).toInt(), (8 * d).toInt())
+            val bg = android.graphics.drawable.GradientDrawable().apply {
+                setColor(colorBg)
+                cornerRadius = 24 * d
+                setStroke((1 * d).toInt(), colorCyan)
+            }
+            background = bg
+            elevation = 14 * d
+        }
+
+        actionBar.addView(makeActionLabel("✕ إغلاق", colorError, d) {
+            hide()
+            onClose()
+        })
+        actionBar.addView(makeActionLabel("نسخ", colorCyan, d) {
+            val allText = blocks.joinToString("\n") { it.translatedText }
+            val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            cb.setPrimaryClip(ClipData.newPlainText("translation", allText))
+            Toast.makeText(context, "تم نسخ كل الترجمة", Toast.LENGTH_SHORT).show()
+            onCopy()
+        })
+        actionBar.addView(makeActionLabel("حفظ", colorSuccess, d) {
+            onSave()
+            Toast.makeText(context, "تم الحفظ", Toast.LENGTH_SHORT).show()
+        })
+
+        val actionParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            y = (40 * d).toInt()
+        }
+        inPlaceCloseButton = actionBar
+
+        try {
+            windowManager.addView(inPlace, inPlaceParams)
+            windowManager.addView(actionBar, actionParams)
+            isVisible = true
+            Log.d("NabdScreenTranslate", "In-place overlay shown with ${blocks.count { it.boundingBox != null }} positioned blocks")
+        } catch (e: Exception) {
+            Log.e("NabdScreenTranslate", "Failed to show in-place overlay: ${e.message}")
+        }
+    }
+
+    private fun makeActionLabel(text: String, color: Int, d: Float, onClick: () -> Unit): TextView {
+        return TextView(context).apply {
+            this.text = text
+            setTextColor(color)
+            textSize = 14f
+            setPadding((16 * d).toInt(), (8 * d).toInt(), (16 * d).toInt(), (8 * d).toInt())
+            val bg = android.graphics.drawable.GradientDrawable().apply {
+                setColor(0x18FFFFFF)
+                cornerRadius = 18 * d
+                setStroke((1 * d).toInt(), (color and 0x00FFFFFF) or 0x40000000)
+            }
+            background = bg
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                marginStart = (5 * d).toInt()
+                marginEnd = (5 * d).toInt()
+            }
+            setOnClickListener { onClick() }
+        }
+    }
 
     @SuppressLint("InflateParams")
     fun showTranslation(
@@ -48,6 +153,7 @@ class TranslationOverlayManager(
     ) {
         Log.d("NabdScreenTranslate", "Showing translation overlay")
         hide()
+
 
         val view = createTranslationView(originalText, translatedText, onCopy, onSave, onClose)
         overlayView = view
@@ -111,6 +217,22 @@ class TranslationOverlayManager(
             }
         }
         overlayView = null
+
+        // Clean up in-place overlay views
+        inPlaceView?.let { v ->
+            try {
+                if (v.isAttachedToWindow) windowManager.removeView(v)
+            } catch (_: Exception) {}
+        }
+        inPlaceView = null
+
+        inPlaceCloseButton?.let { v ->
+            try {
+                if (v.isAttachedToWindow) windowManager.removeView(v)
+            } catch (_: Exception) {}
+        }
+        inPlaceCloseButton = null
+
         isVisible = false
     }
 

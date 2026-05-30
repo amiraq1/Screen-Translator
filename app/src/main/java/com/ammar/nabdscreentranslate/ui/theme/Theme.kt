@@ -8,35 +8,38 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Cyan400,
-    secondary = Cyan600,
-    tertiary = Amber400,
+    primary = Ember500,
+    onPrimary = Ink900,
+    primaryContainer = Ember700,
+    onPrimaryContainer = TextWhite,
+    secondary = Amber400,
+    onSecondary = Ink900,
+    tertiary = Cyan400,
     background = Ink900,
     surface = Glass900,
     surfaceVariant = Glass700,
-    onPrimary = Ink900,
-    onSecondary = TextWhite,
     onBackground = TextWhite,
     onSurface = TextWhite,
     onSurfaceVariant = TextMuted,
     error = Error400,
+    onError = Ink900,
     outline = GlassBorder,
     outlineVariant = Glass600
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Cyan600,
-    secondary = Cyan500,
-    tertiary = Amber500,
+    primary = Ember600,
+    onPrimary = Color(0xFFFFFFFF),
+    secondary = Amber500,
+    tertiary = Cyan600,
     background = LightBackground,
     surface = LightSurface,
     surfaceVariant = LightSurfaceVariant,
-    onPrimary = LightTextPrimary,
-    onSecondary = TextWhite,
     onBackground = LightTextPrimary,
     onSurface = LightTextPrimary,
     onSurfaceVariant = LightTextSecondary,
@@ -64,6 +67,7 @@ fun NabdTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
+        typography = NabdTypography,
         content = content
     )
 }

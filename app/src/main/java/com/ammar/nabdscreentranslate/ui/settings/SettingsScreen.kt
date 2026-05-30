@@ -73,7 +73,7 @@ fun SettingsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Outlined.Opacity, null, tint = Cyan400, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Outlined.Opacity, null, tint = Ember400, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(10.dp))
                             Text("شفافية النافذة", style = MaterialTheme.typography.bodyMedium, color = TextLight, modifier = Modifier.weight(1f))
                             Text("${(uiState.overlayOpacity * 100).toInt()}%", style = MaterialTheme.typography.labelMedium, color = TextDim)
@@ -83,7 +83,7 @@ fun SettingsScreen(
                             onValueChange = onOverlayOpacityChanged,
                             valueRange = 0.5f..1f,
                             modifier = Modifier.padding(top = 4.dp),
-                            colors = SliderDefaults.colors(thumbColor = Cyan400, activeTrackColor = Cyan400, inactiveTrackColor = Glass600)
+                            colors = SliderDefaults.colors(thumbColor = Ember500, activeTrackColor = Ember500, inactiveTrackColor = Glass600)
                         )
                     }
                 }
@@ -164,12 +164,12 @@ private fun SettingsSection(
             modifier = Modifier.padding(bottom = 8.dp, start = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(icon, null, tint = Cyan400, modifier = Modifier.size(14.dp))
+            Icon(icon, null, tint = Ember400, modifier = Modifier.size(14.dp))
             Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = title,
                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = Cyan400
+                color = Ember400
             )
         }
         Card(
@@ -199,7 +199,7 @@ private fun SettingsToggle(
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, null, tint = Cyan400, modifier = Modifier.size(20.dp))
+        Icon(icon, null, tint = Ember400, modifier = Modifier.size(20.dp))
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.bodyMedium, color = TextLight)
@@ -210,7 +210,7 @@ private fun SettingsToggle(
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Ink900,
-                checkedTrackColor = Cyan400,
+                checkedTrackColor = Ember500,
                 uncheckedThumbColor = TextDim,
                 uncheckedTrackColor = Glass600
             )
