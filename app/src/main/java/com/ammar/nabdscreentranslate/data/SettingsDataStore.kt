@@ -24,6 +24,7 @@ class SettingsDataStore(private val context: Context) {
         val VIBRATE_ON_TRANSLATE = booleanPreferencesKey("vibrate_on_translate")
         val LIGHT_BG_BEHIND_TRANSLATION = booleanPreferencesKey("light_bg_behind_translation")
         val DISPLAY_MODE = stringPreferencesKey("translation_display_mode")
+        val DECLUTTER_OVERLAY = booleanPreferencesKey("declutter_overlay")
     }
 
     val sourceLang: Flow<String> = context.dataStore.data.map { it[Keys.SOURCE_LANG] ?: "auto" }
@@ -43,6 +44,13 @@ class SettingsDataStore(private val context: Context) {
      */
     val displayMode: Flow<String> =
         context.dataStore.data.map { it[Keys.DISPLAY_MODE] ?: DISPLAY_MODE_OVERLAY }
+
+    /**
+     * Declutter overlay: groups nearby text, filters noise, limits max bubbles.
+     * Default ON.
+     */
+    val declutterOverlay: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.DECLUTTER_OVERLAY] ?: true }
 
     suspend fun setSourceLang(lang: String) {
         context.dataStore.edit { it[Keys.SOURCE_LANG] = lang }
@@ -74,6 +82,10 @@ class SettingsDataStore(private val context: Context) {
 
     suspend fun setDisplayMode(mode: String) {
         context.dataStore.edit { it[Keys.DISPLAY_MODE] = mode }
+    }
+
+    suspend fun setDeclutterOverlay(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.DECLUTTER_OVERLAY] = enabled }
     }
 
     companion object {

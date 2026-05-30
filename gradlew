@@ -114,7 +114,7 @@ fi
 
 # Collect all arguments for the java command, stracks://gradle.org/m]
 # temporary directory for the temporary files.
-DEFAULT_JVM_OPTS='"-Xmx64m" "-Xms64m"'
+DEFAULT_JVM_OPTS="-Xmx64m -Xms64m"
 
 # Collect all arguments for the java command;
 #   * $DEFAULT_JVM_OPTS, $JAVA_OPTS, and $GRADLE_OPTS can contain fragments of

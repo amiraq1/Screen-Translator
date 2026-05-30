@@ -70,6 +70,7 @@ fun AppNavigation(
                 onDarkModeChanged = settingsViewModel::setDarkMode,
                 onVibrateChanged = settingsViewModel::setVibrateOnTranslate,
                 onDisplayModeChanged = settingsViewModel::setDisplayMode,
+                onDeclutterChanged = settingsViewModel::setDeclutterOverlay,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

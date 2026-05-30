@@ -244,7 +244,8 @@ class FloatingButtonService : Service() {
                 val sourceLang = settingsDataStore.sourceLang.first()
                 val targetLang = settingsDataStore.targetLang.first()
                 val displayMode = settingsDataStore.displayMode.first()
-                Log.d(TAG, "Languages - source=$sourceLang, target=$targetLang, displayMode=$displayMode")
+                val declutterEnabled = settingsDataStore.declutterOverlay.first()
+                Log.d(TAG, "Languages - source=$sourceLang, target=$targetLang, displayMode=$displayMode, declutter=$declutterEnabled")
 
                 // Step 3: Set OCR engine language for hybrid selection
                 ocrEngine.setSourceLanguage(sourceLang)
@@ -258,7 +259,8 @@ class FloatingButtonService : Service() {
                     targetLang = targetLang,
                     screenWidth = bitmap.width,
                     screenHeight = bitmap.height,
-                    region = region
+                    region = region,
+                    declutterEnabled = declutterEnabled
                 )
                 val translateDuration = System.currentTimeMillis() - translateStart
                 Log.d(TAG, "OCR+Translation total: ${translateDuration}ms")
@@ -293,17 +295,36 @@ class FloatingButtonService : Service() {
                             val wantSheet = displayMode == SettingsDataStore.DISPLAY_MODE_SHEET ||
                                     displayMode == SettingsDataStore.DISPLAY_MODE_BOTH
 
+                            // Determine if overflow exists (declutter mode may produce overflow)
+                            val hasOverflow = inPlaceResult.overflowBlocks.isNotEmpty()
+
                             when {
                                 inPlaceResult.hasPositions && wantOverlay -> {
-                                    translationOverlayManager?.showInPlaceTranslation(
-                                        blocks = inPlaceResult.blocks,
-                                        onCopy = { },
-                                        onSave = saveAction,
-                                        onClose = closeAction
-                                    )
-                                    if (wantSheet) {
-                                        translationOverlayManager?.showBottomSheetTranslation(
+                                    if (hasOverflow) {
+                                        translationOverlayManager?.showInPlaceTranslationWithOverflow(
                                             blocks = inPlaceResult.blocks,
+                                            overflowCount = inPlaceResult.overflowBlocks.size,
+                                            onCopy = { },
+                                            onSave = saveAction,
+                                            onClose = closeAction
+                                        )
+                                    } else {
+                                        translationOverlayManager?.showInPlaceTranslation(
+                                            blocks = inPlaceResult.blocks,
+                                            onCopy = { },
+                                            onSave = saveAction,
+                                            onClose = closeAction
+                                        )
+                                    }
+                                    // Show bottom sheet for overflow or if user wants both
+                                    if (wantSheet || hasOverflow) {
+                                        val sheetBlocks = if (hasOverflow) {
+                                            inPlaceResult.overflowBlocks
+                                        } else {
+                                            inPlaceResult.blocks
+                                        }
+                                        translationOverlayManager?.showBottomSheetTranslation(
+                                            blocks = sheetBlocks,
                                             onCopy = { },
                                             onSave = saveAction,
                                             onClose = closeAction
@@ -312,8 +333,9 @@ class FloatingButtonService : Service() {
                                 }
                                 else -> {
                                     // Sheet-only mode, or no bounding boxes available
+                                    val allBlocks = inPlaceResult.blocks + inPlaceResult.overflowBlocks
                                     translationOverlayManager?.showBottomSheetTranslation(
-                                        blocks = inPlaceResult.blocks,
+                                        blocks = allBlocks,
                                         onCopy = { },
                                         onSave = saveAction,
                                         onClose = closeAction

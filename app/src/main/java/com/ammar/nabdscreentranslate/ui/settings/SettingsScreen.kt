@@ -33,6 +33,7 @@ fun SettingsScreen(
     onDarkModeChanged: (Boolean) -> Unit,
     onVibrateChanged: (Boolean) -> Unit,
     onDisplayModeChanged: (String) -> Unit,
+    onDeclutterChanged: (Boolean) -> Unit,
     onNavigateBack: () -> Unit
 ) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
@@ -103,6 +104,14 @@ fun SettingsScreen(
                             colors = SliderDefaults.colors(thumbColor = Ember500, activeTrackColor = Ember500, inactiveTrackColor = Glass600)
                         )
                     }
+                    Divider(color = GlassBorder.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = 16.dp))
+                    SettingsToggle(
+                        icon = Icons.Outlined.CleaningServices,
+                        title = "تقليل ازدحام الترجمة",
+                        subtitle = "تجميع النصوص القريبة وتصفية العناصر غير المهمة",
+                        checked = uiState.declutterOverlay,
+                        onCheckedChange = onDeclutterChanged
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))

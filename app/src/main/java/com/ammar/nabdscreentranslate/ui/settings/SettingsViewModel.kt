@@ -14,7 +14,8 @@ data class SettingsUiState(
     val vibrateOnTranslate: Boolean = true,
     val displayMode: String = SettingsDataStore.DISPLAY_MODE_OVERLAY,
     val sourceLang: String = "auto",
-    val targetLang: String = "ar"
+    val targetLang: String = "ar",
+    val declutterOverlay: Boolean = true
 )
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
@@ -40,6 +41,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         state.copy(targetLang = targetLang)
     }.combine(settingsDataStore.displayMode) { state, mode ->
         state.copy(displayMode = mode)
+    }.combine(settingsDataStore.declutterOverlay) { state, declutter ->
+        state.copy(declutterOverlay = declutter)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsUiState())
 
     fun setDisplayMode(mode: String) {
@@ -60,5 +63,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun setVibrateOnTranslate(vibrate: Boolean) {
         viewModelScope.launch { settingsDataStore.setVibrateOnTranslate(vibrate) }
+    }
+
+    fun setDeclutterOverlay(enabled: Boolean) {
+        viewModelScope.launch { settingsDataStore.setDeclutterOverlay(enabled) }
     }
 }

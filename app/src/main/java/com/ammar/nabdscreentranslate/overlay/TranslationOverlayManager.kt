@@ -68,8 +68,8 @@ class TranslationOverlayManager(
             PixelFormat.TRANSLUCENT
         )
 
-        // Small, subtle control pill (copy / save / hide)
-        val actionBar = buildControlPill(blocks, onCopy, onSave, onClose, d)
+        // Small, subtle control pill (copy / save / hide / overflow indicator)
+        val actionBar = buildControlPill(blocks, onCopy, onSave, onClose, d, hasOverflow = false)
 
         val actionParams = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -89,6 +89,59 @@ class TranslationOverlayManager(
             windowManager.addView(actionBar, actionParams)
             isVisible = true
             Log.d("NabdScreenTranslate", "Inline overlay shown with ${blocks.count { it.boundingBox != null }} bubbles")
+        } catch (e: Exception) {
+            Log.e("NabdScreenTranslate", "Failed to show inline overlay: ${e.message}")
+        }
+    }
+
+    /**
+     * Show inline translation with overflow indicator when there are more
+     * items available in the bottom sheet.
+     */
+    @SuppressLint("InflateParams")
+    fun showInPlaceTranslationWithOverflow(
+        blocks: List<InPlaceBlock>,
+        overflowCount: Int,
+        onCopy: () -> Unit,
+        onSave: () -> Unit,
+        onClose: () -> Unit
+    ) {
+        Log.d("NabdScreenTranslate", "Showing inline overlay (${blocks.size} bubbles, $overflowCount overflow)")
+        hide()
+
+        val d = context.resources.displayMetrics.density
+
+        val inPlace = InPlaceTranslationView(context, blocks) { hide(); onClose() }
+        inPlaceView = inPlace
+
+        val inPlaceParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        )
+
+        val actionBar = buildControlPill(blocks, onCopy, onSave, onClose, d, hasOverflow = overflowCount > 0)
+        val actionParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            y = (32 * d).toInt()
+        }
+        inPlaceCloseButton = actionBar
+
+        try {
+            windowManager.addView(inPlace, inPlaceParams)
+            windowManager.addView(actionBar, actionParams)
+            isVisible = true
+            Log.d("NabdScreenTranslate", "Inline overlay shown: ${blocks.count { it.boundingBox != null }} bubbles, $overflowCount in sheet")
         } catch (e: Exception) {
             Log.e("NabdScreenTranslate", "Failed to show inline overlay: ${e.message}")
         }
@@ -139,7 +192,8 @@ class TranslationOverlayManager(
         onCopy: () -> Unit,
         onSave: () -> Unit,
         onClose: () -> Unit,
-        d: Float
+        d: Float,
+        hasOverflow: Boolean = false
     ): LinearLayout {
         return LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -153,6 +207,22 @@ class TranslationOverlayManager(
             background = bg
             elevation = 12 * d
             alpha = 0.92f
+
+            if (hasOverflow) {
+                addView(TextView(context).apply {
+                    text = "↓ المزيد"
+                    setTextColor(0xFFFFC107.toInt())
+                    textSize = 11f
+                    setPadding((10 * d).toInt(), (6 * d).toInt(), (10 * d).toInt(), (6 * d).toInt())
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply {
+                        marginStart = (3 * d).toInt()
+                        marginEnd = (3 * d).toInt()
+                    }
+                })
+            }
 
             addView(makeIconAction("نسخ", colorAccent, d) {
                 copyAll(blocks); onCopy()
