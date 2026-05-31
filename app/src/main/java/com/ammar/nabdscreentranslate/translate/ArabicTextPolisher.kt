@@ -47,6 +47,9 @@ class ArabicTextPolisher {
             "انقر" to "اضغط",
             "أنقر" to "اضغط",
             "إنقر" to "اضغط",
+            "اسطر" to "أسطر",
+            "اربعه" to "أربعة",
+            "ثلاثه" to "ثلاثة",
             "مهمه" to "مهمة",
             "كبيره" to "كبيرة",
             "صغيره" to "صغيرة",
@@ -125,16 +128,24 @@ class ArabicTextPolisher {
         current = styled
         totalCorrections += styleCount
 
-        // 3. Fix punctuation
+        // 3. Apply contextual grammar rules
+        val (grammared, grammarCount) = applyGrammarRules(current)
+        current = grammared
+        totalCorrections += grammarCount
+
+        // 4. Fix punctuation
         current = fixPunctuation(current)
 
-        // 4. Clean spacing
+        // 5. Clean spacing
         current = cleanSpacing(current)
 
-        // 5. Clean artifacts
+        // 6. Clean artifacts
         current = cleanArtifacts(current)
 
-        // 6. Fix sentence start/end (only for longer text)
+        // 7. Remove unnecessary comma before prepositions
+        current = fixCommaBeforePreposition(current)
+
+        // 8. Fix sentence start/end (only for longer text)
         if (wordCount > 5) {
             current = fixSentenceBoundaries(current)
         }
@@ -260,6 +271,43 @@ class ArabicTextPolisher {
             }
         }
 
+        return result
+    }
+
+    /**
+     * Applies contextual grammar rules:
+     * - "اكتب مقال إنجليزي قصير" → "اكتب مقالًا إنجليزيًا قصيرًا"
+     */
+    private fun applyGrammarRules(text: String): Pair<String, Int> {
+        var result = text
+        var count = 0
+
+        // "اكتب مقال" pattern → add tanween for accusative (مفعول به)
+        if (result.contains("اكتب مقال")) {
+            result = result.replace("اكتب مقال إنجليزي قصير", "اكتب مقالًا إنجليزيًا قصيرًا")
+            result = result.replace("اكتب مقال عربي قصير", "اكتب مقالًا عربيًا قصيرًا")
+            result = result.replace("اكتب مقال قصير", "اكتب مقالًا قصيرًا")
+            result = result.replace("اكتب مقال طويل", "اكتب مقالًا طويلًا")
+            // Generic: "اكتب مقال" without specific adjective
+            if (result.contains("اكتب مقال") && !result.contains("اكتب مقالًا")) {
+                result = result.replace("اكتب مقال", "اكتب مقالًا")
+            }
+            count++
+        }
+
+        return Pair(result, count)
+    }
+
+    /**
+     * Removes unnecessary comma before prepositions like من، بـ، في، على
+     * when preceded by an adjective (e.g., "قصيرًا، من" → "قصيرًا من")
+     */
+    private fun fixCommaBeforePreposition(text: String): String {
+        var result = text
+        // Remove comma before من/بـ/في/على when it follows an adjective or noun
+        result = result.replace(Regex("([ًٌٍَُِّْا-ي])،\\s*(من|بـ|في|على|إلى)\\s"), "$1 $2 ")
+        // Also handle without tanween
+        result = result.replace(Regex("(قصير|طويل|جديد|قديم|كبير|صغير)،\\s*(من|بـ|في|على|إلى)"), "$1 $2")
         return result
     }
 }
