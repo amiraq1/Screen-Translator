@@ -245,7 +245,8 @@ class FloatingButtonService : Service() {
                 val targetLang = settingsDataStore.targetLang.first()
                 val displayMode = settingsDataStore.displayMode.first()
                 val declutterEnabled = settingsDataStore.declutterOverlay.first()
-                Log.d(TAG, "Languages - source=$sourceLang, target=$targetLang, displayMode=$displayMode, declutter=$declutterEnabled")
+                val polishArabicEnabled = settingsDataStore.polishArabic.first()
+                Log.d(TAG, "Languages - source=$sourceLang, target=$targetLang, displayMode=$displayMode, declutter=$declutterEnabled, polishArabic=$polishArabicEnabled")
 
                 // Step 3: Set OCR engine language for hybrid selection
                 ocrEngine.setSourceLanguage(sourceLang)
@@ -260,7 +261,8 @@ class FloatingButtonService : Service() {
                     screenWidth = bitmap.width,
                     screenHeight = bitmap.height,
                     region = region,
-                    declutterEnabled = declutterEnabled
+                    declutterEnabled = declutterEnabled,
+                    polishArabicEnabled = polishArabicEnabled
                 )
                 val translateDuration = System.currentTimeMillis() - translateStart
                 Log.d(TAG, "OCR+Translation total: ${translateDuration}ms")

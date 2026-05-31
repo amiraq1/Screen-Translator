@@ -34,6 +34,7 @@ fun SettingsScreen(
     onVibrateChanged: (Boolean) -> Unit,
     onDisplayModeChanged: (String) -> Unit,
     onDeclutterChanged: (Boolean) -> Unit,
+    onPolishArabicChanged: (Boolean) -> Unit,
     onNavigateBack: () -> Unit
 ) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
@@ -111,6 +112,14 @@ fun SettingsScreen(
                         subtitle = "تجميع النصوص القريبة وتصفية العناصر غير المهمة",
                         checked = uiState.declutterOverlay,
                         onCheckedChange = onDeclutterChanged
+                    )
+                    Divider(color = GlassBorder.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = 16.dp))
+                    SettingsToggle(
+                        icon = Icons.Outlined.Translate,
+                        title = "تحسين العربية",
+                        subtitle = "تصحيح الترجمة وتحسين الأسلوب العربي",
+                        checked = uiState.polishArabic,
+                        onCheckedChange = onPolishArabicChanged
                     )
                 }
 

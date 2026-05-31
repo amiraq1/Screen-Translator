@@ -15,7 +15,8 @@ data class SettingsUiState(
     val displayMode: String = SettingsDataStore.DISPLAY_MODE_OVERLAY,
     val sourceLang: String = "auto",
     val targetLang: String = "ar",
-    val declutterOverlay: Boolean = true
+    val declutterOverlay: Boolean = true,
+    val polishArabic: Boolean = true
 )
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
@@ -43,6 +44,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         state.copy(displayMode = mode)
     }.combine(settingsDataStore.declutterOverlay) { state, declutter ->
         state.copy(declutterOverlay = declutter)
+    }.combine(settingsDataStore.polishArabic) { state, polish ->
+        state.copy(polishArabic = polish)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsUiState())
 
     fun setDisplayMode(mode: String) {
@@ -67,5 +70,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun setDeclutterOverlay(enabled: Boolean) {
         viewModelScope.launch { settingsDataStore.setDeclutterOverlay(enabled) }
+    }
+
+    fun setPolishArabic(enabled: Boolean) {
+        viewModelScope.launch { settingsDataStore.setPolishArabic(enabled) }
     }
 }

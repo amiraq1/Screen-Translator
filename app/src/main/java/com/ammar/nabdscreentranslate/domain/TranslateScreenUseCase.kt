@@ -11,6 +11,7 @@ import com.ammar.nabdscreentranslate.overlay.NoiseFilter
 import com.ammar.nabdscreentranslate.overlay.TextBlockGrouper
 import com.ammar.nabdscreentranslate.translate.TranslationEngine
 import com.ammar.nabdscreentranslate.translate.TranslationResult
+import com.ammar.nabdscreentranslate.translate.ArabicTextPolisher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -55,6 +56,7 @@ class TranslateScreenUseCase(
 
     private val noiseFilter = NoiseFilter()
     private val grouper = TextBlockGrouper()
+    private val arabicPolisher = ArabicTextPolisher()
 
     suspend fun execute(
         bitmap: Bitmap,
@@ -171,7 +173,8 @@ class TranslateScreenUseCase(
         screenWidth: Int,
         screenHeight: Int,
         region: Rect? = null,
-        declutterEnabled: Boolean = true
+        declutterEnabled: Boolean = true,
+        polishArabicEnabled: Boolean = true
     ): Result<InPlaceTranslationResult> {
         val targetBitmap = if (region != null) {
             BitmapUtils.cropRegion(bitmap, region)
@@ -218,7 +221,7 @@ class TranslateScreenUseCase(
 
         if (!declutterEnabled) {
             // Legacy behavior: translate each block individually
-            return executeInPlaceLegacy(scaledBlocks, sourceLang, targetLang)
+            return executeInPlaceLegacy(scaledBlocks, sourceLang, targetLang, polishArabicEnabled)
         }
 
         // ── PHASE 2: Noise filtering ──
@@ -250,7 +253,7 @@ class TranslateScreenUseCase(
             prioritized.inlineBubbles.map { group ->
                 async {
                     val translated = when (val r = translationEngine.translate(group.mergedText, sourceLang, targetLang)) {
-                        is TranslationResult.Success -> r.translatedText
+                        is TranslationResult.Success -> polishIfEnabled(r.translatedText, targetLang, polishArabicEnabled)
                         else -> group.mergedText
                     }
                     InPlaceBlock(
@@ -266,7 +269,7 @@ class TranslateScreenUseCase(
             prioritized.overflowGroups.map { group ->
                 async {
                     val translated = when (val r = translationEngine.translate(group.mergedText, sourceLang, targetLang)) {
-                        is TranslationResult.Success -> r.translatedText
+                        is TranslationResult.Success -> polishIfEnabled(r.translatedText, targetLang, polishArabicEnabled)
                         else -> group.mergedText
                     }
                     InPlaceBlock(
@@ -301,13 +304,14 @@ class TranslateScreenUseCase(
     private suspend fun executeInPlaceLegacy(
         scaledBlocks: List<TextBlockResult>,
         sourceLang: String,
-        targetLang: String
+        targetLang: String,
+        polishArabicEnabled: Boolean = true
     ): Result<InPlaceTranslationResult> {
         val translatedBlocks: List<InPlaceBlock> = coroutineScope {
             scaledBlocks.map { block ->
                 async {
                     val translated = when (val r = translationEngine.translate(block.text, sourceLang, targetLang)) {
-                        is TranslationResult.Success -> r.translatedText
+                        is TranslationResult.Success -> polishIfEnabled(r.translatedText, targetLang, polishArabicEnabled)
                         else -> block.text
                     }
                     InPlaceBlock(
@@ -329,5 +333,20 @@ class TranslateScreenUseCase(
                 translatedText = fullTranslated
             )
         )
+    }
+
+    /**
+     * Applies Arabic text polishing if enabled and target language is Arabic.
+     */
+    private fun polishIfEnabled(text: String, targetLang: String, enabled: Boolean): String {
+        if (!enabled) {
+            Log.d(TAG, "ArabicPolish: polish skipped (disabled)")
+            return text
+        }
+        // Only polish if target is Arabic
+        if (targetLang != "ar") return text
+
+        val result = arabicPolisher.polish(text)
+        return result.text
     }
 }

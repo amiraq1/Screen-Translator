@@ -25,6 +25,7 @@ class SettingsDataStore(private val context: Context) {
         val LIGHT_BG_BEHIND_TRANSLATION = booleanPreferencesKey("light_bg_behind_translation")
         val DISPLAY_MODE = stringPreferencesKey("translation_display_mode")
         val DECLUTTER_OVERLAY = booleanPreferencesKey("declutter_overlay")
+        val POLISH_ARABIC = booleanPreferencesKey("polish_arabic")
     }
 
     val sourceLang: Flow<String> = context.dataStore.data.map { it[Keys.SOURCE_LANG] ?: "auto" }
@@ -51,6 +52,13 @@ class SettingsDataStore(private val context: Context) {
      */
     val declutterOverlay: Flow<Boolean> =
         context.dataStore.data.map { it[Keys.DECLUTTER_OVERLAY] ?: true }
+
+    /**
+     * Polish Arabic text: apply corrections, style improvements, punctuation fixes.
+     * Default ON.
+     */
+    val polishArabic: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.POLISH_ARABIC] ?: true }
 
     suspend fun setSourceLang(lang: String) {
         context.dataStore.edit { it[Keys.SOURCE_LANG] = lang }
@@ -86,6 +94,10 @@ class SettingsDataStore(private val context: Context) {
 
     suspend fun setDeclutterOverlay(enabled: Boolean) {
         context.dataStore.edit { it[Keys.DECLUTTER_OVERLAY] = enabled }
+    }
+
+    suspend fun setPolishArabic(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.POLISH_ARABIC] = enabled }
     }
 
     companion object {
