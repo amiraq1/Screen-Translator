@@ -16,7 +16,10 @@ data class SettingsUiState(
     val sourceLang: String = "auto",
     val targetLang: String = "ar",
     val declutterOverlay: Boolean = true,
-    val polishArabic: Boolean = true
+    val polishArabic: Boolean = true,
+    val liveTranslation: Boolean = false,
+    val liveInterval: String = SettingsDataStore.LIVE_INTERVAL_BALANCED,
+    val liveOnlyOnChange: Boolean = true
 )
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
@@ -46,6 +49,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         state.copy(declutterOverlay = declutter)
     }.combine(settingsDataStore.polishArabic) { state, polish ->
         state.copy(polishArabic = polish)
+    }.combine(settingsDataStore.liveTranslation) { state, live ->
+        state.copy(liveTranslation = live)
+    }.combine(settingsDataStore.liveInterval) { state, interval ->
+        state.copy(liveInterval = interval)
+    }.combine(settingsDataStore.liveOnlyOnChange) { state, onlyOnChange ->
+        state.copy(liveOnlyOnChange = onlyOnChange)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsUiState())
 
     fun setDisplayMode(mode: String) {
@@ -74,5 +83,17 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun setPolishArabic(enabled: Boolean) {
         viewModelScope.launch { settingsDataStore.setPolishArabic(enabled) }
+    }
+
+    fun setLiveTranslation(enabled: Boolean) {
+        viewModelScope.launch { settingsDataStore.setLiveTranslation(enabled) }
+    }
+
+    fun setLiveInterval(interval: String) {
+        viewModelScope.launch { settingsDataStore.setLiveInterval(interval) }
+    }
+
+    fun setLiveOnlyOnChange(enabled: Boolean) {
+        viewModelScope.launch { settingsDataStore.setLiveOnlyOnChange(enabled) }
     }
 }

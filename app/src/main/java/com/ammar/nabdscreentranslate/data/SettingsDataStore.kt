@@ -26,6 +26,9 @@ class SettingsDataStore(private val context: Context) {
         val DISPLAY_MODE = stringPreferencesKey("translation_display_mode")
         val DECLUTTER_OVERLAY = booleanPreferencesKey("declutter_overlay")
         val POLISH_ARABIC = booleanPreferencesKey("polish_arabic")
+        val LIVE_TRANSLATION = booleanPreferencesKey("live_translation")
+        val LIVE_INTERVAL = stringPreferencesKey("live_interval")
+        val LIVE_ONLY_ON_CHANGE = booleanPreferencesKey("live_only_on_change")
     }
 
     val sourceLang: Flow<String> = context.dataStore.data.map { it[Keys.SOURCE_LANG] ?: "auto" }
@@ -100,10 +103,37 @@ class SettingsDataStore(private val context: Context) {
         context.dataStore.edit { it[Keys.POLISH_ARABIC] = enabled }
     }
 
+    /** Live translation enabled. Default OFF. */
+    val liveTranslation: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.LIVE_TRANSLATION] ?: false }
+
+    /** Live interval: "fast" (1s), "balanced" (2s), "battery" (3s). Default "balanced". */
+    val liveInterval: Flow<String> =
+        context.dataStore.data.map { it[Keys.LIVE_INTERVAL] ?: LIVE_INTERVAL_BALANCED }
+
+    /** Only translate when text changes. Default ON. */
+    val liveOnlyOnChange: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.LIVE_ONLY_ON_CHANGE] ?: true }
+
+    suspend fun setLiveTranslation(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.LIVE_TRANSLATION] = enabled }
+    }
+
+    suspend fun setLiveInterval(interval: String) {
+        context.dataStore.edit { it[Keys.LIVE_INTERVAL] = interval }
+    }
+
+    suspend fun setLiveOnlyOnChange(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.LIVE_ONLY_ON_CHANGE] = enabled }
+    }
+
     companion object {
         const val DISPLAY_MODE_OVERLAY = "overlay"
         const val DISPLAY_MODE_SHEET = "sheet"
         const val DISPLAY_MODE_BOTH = "both"
         const val DISPLAY_MODE_VISUAL_REPLACE = "visual_replace"
+        const val LIVE_INTERVAL_FAST = "fast"
+        const val LIVE_INTERVAL_BALANCED = "balanced"
+        const val LIVE_INTERVAL_BATTERY = "battery"
     }
 }

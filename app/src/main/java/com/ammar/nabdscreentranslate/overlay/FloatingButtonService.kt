@@ -24,6 +24,7 @@ import com.ammar.nabdscreentranslate.capture.MediaProjectionHolder
 import com.ammar.nabdscreentranslate.capture.MediaProjectionRequestActivity
 import com.ammar.nabdscreentranslate.capture.ScreenCaptureManager
 import com.ammar.nabdscreentranslate.capture.ScreenCaptureService
+import com.ammar.nabdscreentranslate.capture.LiveTranslationController
 import com.ammar.nabdscreentranslate.data.AppDatabase
 import com.ammar.nabdscreentranslate.data.SettingsDataStore
 import com.ammar.nabdscreentranslate.domain.SaveTranslationUseCase
@@ -60,6 +61,10 @@ class FloatingButtonService : Service() {
 
     // Long press detection
     private var pendingRegion: android.graphics.Rect? = null
+
+    // Live translation
+    private var liveController: LiveTranslationController? = null
+    private var isLiveMode = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -177,8 +182,8 @@ class FloatingButtonService : Service() {
 
     private fun onLongPress() {
         if (isProcessing) return
-        Log.d(TAG, "Long press - showing region selector")
-        showRegionSelector()
+        Log.d(TAG, "Long press - toggling live mode")
+        toggleLiveMode()
     }
 
     private fun onDoubleTap() {
@@ -457,6 +462,179 @@ class FloatingButtonService : Service() {
         regionSelectorOverlay?.show()
     }
 
+    private fun toggleLiveMode() {
+        if (isLiveMode) {
+            stopLiveMode()
+        } else {
+            startLiveMode()
+        }
+    }
+
+    private fun startLiveMode() {
+        Log.d(TAG, "Starting live mode")
+        // Request MediaProjection consent for live session
+        MediaProjectionRequestActivity.launch(
+            context = this,
+            onGranted = {
+                Log.d(TAG, "Live: MediaProjection granted")
+                ScreenCaptureService.start(this)
+                handler.postDelayed({ initLiveController() }, 300)
+            },
+            onDenied = {
+                Log.w(TAG, "Live: MediaProjection denied")
+                handler.post {
+                    translationOverlayManager?.showError("لم يتم منح صلاحية التقاط الشاشة")
+                }
+            }
+        )
+    }
+
+    private fun initLiveController() {
+        serviceScope.launch {
+            val intervalSetting = settingsDataStore.liveInterval.first()
+            val intervalMs = when (intervalSetting) {
+                SettingsDataStore.LIVE_INTERVAL_FAST -> 1000L
+                SettingsDataStore.LIVE_INTERVAL_BATTERY -> 3000L
+                else -> 2000L // balanced
+            }
+            val onlyOnChange = settingsDataStore.liveOnlyOnChange.first()
+
+            val controller = LiveTranslationController(this@FloatingButtonService)
+            liveController = controller
+
+            controller.onTranslationReady = { bitmap ->
+                performLiveTranslation(bitmap, onlyOnChange)
+            }
+            controller.onStopped = { reason ->
+                handler.post {
+                    isLiveMode = false
+                    updateFloatingButtonLiveState(false)
+                    translationOverlayManager?.showError(reason)
+                }
+            }
+
+            controller.start(intervalMs)
+            isLiveMode = true
+            handler.post { updateFloatingButtonLiveState(true) }
+        }
+    }
+
+    private suspend fun performLiveTranslation(bitmap: android.graphics.Bitmap, onlyOnChange: Boolean) {
+        try {
+            val sourceLang = settingsDataStore.sourceLang.first()
+            val targetLang = settingsDataStore.targetLang.first()
+            val displayMode = settingsDataStore.displayMode.first()
+            val declutterEnabled = settingsDataStore.declutterOverlay.first()
+            val polishArabicEnabled = settingsDataStore.polishArabic.first()
+
+            ocrEngine.setSourceLanguage(sourceLang)
+
+            val result = translateScreenUseCase.executeInPlace(
+                bitmap = bitmap,
+                sourceLang = sourceLang,
+                targetLang = targetLang,
+                screenWidth = bitmap.width,
+                screenHeight = bitmap.height,
+                region = null,
+                declutterEnabled = declutterEnabled,
+                polishArabicEnabled = polishArabicEnabled
+            )
+
+            result.fold(
+                onSuccess = { inPlaceResult ->
+                    // Check if text changed
+                    if (onlyOnChange && liveController != null) {
+                        if (!liveController!!.hasTextChanged(inPlaceResult.originalText)) {
+                            bitmap.recycle()
+                            return
+                        }
+                    }
+
+                    Log.d(TAG, "Live translation success (${inPlaceResult.blocks.size} blocks)")
+
+                    withContext(Dispatchers.Main) {
+                        lastTranslationResult = inPlaceResult.originalText to inPlaceResult.translatedText
+                        translationOverlayManager?.hide()
+
+                        val saveAction: () -> Unit = {
+                            serviceScope.launch {
+                                saveToHistory(inPlaceResult.originalText, inPlaceResult.translatedText, sourceLang, targetLang)
+                            }
+                        }
+                        val closeAction: () -> Unit = { translationOverlayManager?.hide() }
+
+                        val wantVisualReplace = displayMode == SettingsDataStore.DISPLAY_MODE_VISUAL_REPLACE
+
+                        when {
+                            wantVisualReplace && inPlaceResult.hasPositions -> {
+                                val allBlocks = inPlaceResult.blocks + inPlaceResult.overflowBlocks
+                                translationOverlayManager?.showVisualReplaceTranslation(
+                                    blocks = allBlocks,
+                                    screenshotBitmap = bitmap,
+                                    onCopy = { },
+                                    onSave = saveAction,
+                                    onClose = closeAction
+                                )
+                            }
+                            inPlaceResult.hasPositions && displayMode != SettingsDataStore.DISPLAY_MODE_SHEET -> {
+                                translationOverlayManager?.showInPlaceTranslation(
+                                    blocks = inPlaceResult.blocks,
+                                    onCopy = { },
+                                    onSave = saveAction,
+                                    onClose = closeAction
+                                )
+                            }
+                            else -> {
+                                val allBlocks = inPlaceResult.blocks + inPlaceResult.overflowBlocks
+                                translationOverlayManager?.showBottomSheetTranslation(
+                                    blocks = allBlocks,
+                                    onCopy = { },
+                                    onSave = saveAction,
+                                    onClose = closeAction
+                                )
+                            }
+                        }
+
+                        // Save to history (only if text changed)
+                        val saveHistory = settingsDataStore.saveHistory.first()
+                        if (saveHistory) {
+                            saveToHistory(inPlaceResult.originalText, inPlaceResult.translatedText, sourceLang, targetLang)
+                        }
+                    }
+                },
+                onFailure = { error ->
+                    Log.d(TAG, "Live: OCR/translate returned no text: ${error.message}")
+                    bitmap.recycle()
+                }
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Live: translation error: ${e.message}")
+            bitmap.recycle()
+        }
+    }
+
+    private fun stopLiveMode() {
+        Log.d(TAG, "Stopping live mode")
+        liveController?.stop()
+        liveController = null
+        isLiveMode = false
+        updateFloatingButtonLiveState(false)
+        ScreenCaptureService.stop(this)
+    }
+
+    private fun updateFloatingButtonLiveState(active: Boolean) {
+        floatingView?.let { view ->
+            val bg = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.OVAL
+                setColor(0xFF131110.toInt())
+                val borderColor = if (active) 0xFFFF3D00.toInt() else 0xFFFF7000.toInt()
+                setStroke((2 * view.resources.displayMetrics.density).toInt(), borderColor)
+            }
+            view.background = bg
+            view.invalidate()
+        }
+    }
+
     private fun vibrateIfEnabled() {
         serviceScope.launch {
             try {
@@ -509,6 +687,7 @@ class FloatingButtonService : Service() {
         super.onDestroy()
         Log.d(TAG, "FloatingButtonService destroyed - cleaning up all resources")
         isProcessing = false
+        stopLiveMode()
         removeFloatingButton()
         serviceScope.cancel()
         try { ocrEngine.close() } catch (e: Exception) { Log.w(TAG, "Error closing OCR: ${e.message}") }

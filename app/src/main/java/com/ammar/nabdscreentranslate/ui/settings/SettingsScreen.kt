@@ -35,6 +35,9 @@ fun SettingsScreen(
     onDisplayModeChanged: (String) -> Unit,
     onDeclutterChanged: (Boolean) -> Unit,
     onPolishArabicChanged: (Boolean) -> Unit,
+    onLiveTranslationChanged: (Boolean) -> Unit,
+    onLiveIntervalChanged: (String) -> Unit,
+    onLiveOnlyOnChangeChanged: (Boolean) -> Unit,
     onNavigateBack: () -> Unit
 ) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
@@ -120,6 +123,40 @@ fun SettingsScreen(
                         subtitle = "تصحيح الترجمة وتحسين الأسلوب العربي",
                         checked = uiState.polishArabic,
                         onCheckedChange = onPolishArabicChanged
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // ─── Live Translation ────────────────────────────────
+                SettingsSection(title = "الترجمة الفورية", icon = Icons.Outlined.PlayCircle) {
+                    SettingsToggle(
+                        icon = Icons.Outlined.PlayCircle,
+                        title = "تشغيل الترجمة الفورية",
+                        subtitle = "ترجمة مستمرة عند تغيّر النص",
+                        checked = uiState.liveTranslation,
+                        onCheckedChange = onLiveTranslationChanged
+                    )
+                    Divider(color = GlassBorder.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = 16.dp))
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "سرعة التحديث",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextLight
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        LiveIntervalSelector(
+                            selected = uiState.liveInterval,
+                            onSelected = onLiveIntervalChanged
+                        )
+                    }
+                    Divider(color = GlassBorder.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = 16.dp))
+                    SettingsToggle(
+                        icon = Icons.Outlined.ChangeCircle,
+                        title = "ترجمة عند تغيّر النص فقط",
+                        subtitle = "تخطي الترجمة إذا النص لم يتغير",
+                        checked = uiState.liveOnlyOnChange,
+                        onCheckedChange = onLiveOnlyOnChangeChanged
                     )
                 }
 
@@ -259,6 +296,47 @@ private fun DisplayModeSelector(
             }
             // Fill remaining space
             Spacer(modifier = Modifier.weight(2f))
+        }
+    }
+}
+
+@Composable
+private fun LiveIntervalSelector(
+    selected: String,
+    onSelected: (String) -> Unit
+) {
+    val options = listOf(
+        SettingsDataStore.LIVE_INTERVAL_FAST to "سريع (1ث)",
+        SettingsDataStore.LIVE_INTERVAL_BALANCED to "متوازن (2ث)",
+        SettingsDataStore.LIVE_INTERVAL_BATTERY to "توفير (3ث)"
+    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(Glass700.copy(alpha = 0.4f))
+            .border(1.dp, GlassBorder.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        options.forEach { (value, label) ->
+            val isSelected = value == selected
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(if (isSelected) Ember500 else androidx.compose.ui.graphics.Color.Transparent)
+                    .clickable { onSelected(value) }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (isSelected) Ink900 else TextMuted,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 }

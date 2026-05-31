@@ -72,6 +72,9 @@ fun AppNavigation(
                 onDisplayModeChanged = settingsViewModel::setDisplayMode,
                 onDeclutterChanged = settingsViewModel::setDeclutterOverlay,
                 onPolishArabicChanged = settingsViewModel::setPolishArabic,
+                onLiveTranslationChanged = settingsViewModel::setLiveTranslation,
+                onLiveIntervalChanged = settingsViewModel::setLiveInterval,
+                onLiveOnlyOnChangeChanged = settingsViewModel::setLiveOnlyOnChange,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
