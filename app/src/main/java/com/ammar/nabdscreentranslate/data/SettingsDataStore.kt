@@ -92,5 +92,6 @@ class SettingsDataStore(private val context: Context) {
         const val DISPLAY_MODE_OVERLAY = "overlay"
         const val DISPLAY_MODE_SHEET = "sheet"
         const val DISPLAY_MODE_BOTH = "both"
+        const val DISPLAY_MODE_VISUAL_REPLACE = "visual_replace"
     }
 }

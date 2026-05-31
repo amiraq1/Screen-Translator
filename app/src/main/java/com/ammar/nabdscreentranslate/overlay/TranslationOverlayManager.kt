@@ -30,6 +30,7 @@ class TranslationOverlayManager(
     private var inPlaceView: View? = null
     private var inPlaceCloseButton: View? = null
     private var bottomSheetView: View? = null
+    private var visualReplaceView: VisualReplaceOverlayView? = null
     private var isVisible = false
 
     // Colors matching Ember on Graphite theme
@@ -183,6 +184,65 @@ class TranslationOverlayManager(
             isVisible = true
         } catch (e: Exception) {
             Log.e("NabdScreenTranslate", "Failed to show bottom sheet: ${e.message}")
+        }
+    }
+
+    /**
+     * Visual Replace mode: covers original text with background-matched rectangles
+     * and renders translated text in-place, simulating Google Lens style replacement.
+     *
+     * @param screenshotBitmap The captured screenshot for background color sampling.
+     *                         This bitmap will NOT be recycled by this method.
+     */
+    @SuppressLint("InflateParams")
+    fun showVisualReplaceTranslation(
+        blocks: List<InPlaceBlock>,
+        screenshotBitmap: android.graphics.Bitmap,
+        onCopy: () -> Unit,
+        onSave: () -> Unit,
+        onClose: () -> Unit
+    ) {
+        Log.d("NabdScreenTranslate", "VisualReplace mode enabled, groups count = ${blocks.size}")
+        hide()
+
+        val d = context.resources.displayMetrics.density
+
+        val vrView = VisualReplaceOverlayView(context, blocks, screenshotBitmap, windowManager) {
+            hide(); onClose()
+        }
+        visualReplaceView = vrView
+
+        val vrParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        )
+
+        // Control pill for copy/save/hide
+        val actionBar = buildControlPill(blocks, onCopy, onSave, onClose, d, hasOverflow = false)
+        val actionParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            y = (32 * d).toInt()
+        }
+        inPlaceCloseButton = actionBar
+
+        try {
+            windowManager.addView(vrView, vrParams)
+            windowManager.addView(actionBar, actionParams)
+            isVisible = true
+            Log.d("NabdScreenTranslate", "VisualReplace: visual replace shown with ${blocks.count { it.boundingBox != null }} groups")
+        } catch (e: Exception) {
+            Log.e("NabdScreenTranslate", "Failed to show visual replace overlay: ${e.message}")
         }
     }
 
@@ -509,6 +569,15 @@ class TranslationOverlayManager(
             } catch (_: Exception) {}
         }
         inPlaceCloseButton = null
+
+        // Clean up visual replace overlay
+        visualReplaceView?.let { v ->
+            v.dismissPopup()
+            try {
+                if (v.isAttachedToWindow) windowManager.removeView(v)
+            } catch (_: Exception) {}
+        }
+        visualReplaceView = null
 
         removeBottomSheet()
 

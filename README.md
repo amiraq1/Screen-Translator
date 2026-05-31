@@ -10,7 +10,13 @@ Real-time on-device screen translation for Android. Capture any text on screen, 
 - **Translation** — ML Kit offline translation (50+ languages → Arabic)
 - **Region Selection** — Long-press to select specific screen area
 - **Translation History** — Auto-save, search, copy, delete
-- **Settings** — Overlay opacity, vibration, history toggle, dark mode
+- **Display Modes:**
+  - **Overlay Bubbles** — Translated text in floating bubbles near original
+  - **Bottom Sheet** — Scrollable panel at screen bottom
+  - **Both** — Bubbles + sheet combined
+  - **Visual Replace** — Covers original text and renders translation in-place (Google Lens style)
+- **Overlay Declutter** — Groups nearby text, filters noise, limits max bubbles
+- **Settings** — Overlay opacity, vibration, history toggle, dark mode, display mode
 - **Privacy-First** — 100% on-device processing, no network calls
 
 ## Permissions

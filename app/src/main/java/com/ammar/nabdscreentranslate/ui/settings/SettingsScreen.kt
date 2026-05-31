@@ -187,35 +187,69 @@ private fun DisplayModeSelector(
     val options = listOf(
         SettingsDataStore.DISPLAY_MODE_OVERLAY to "فوق النص",
         SettingsDataStore.DISPLAY_MODE_SHEET to "لوحة سفلية",
-        SettingsDataStore.DISPLAY_MODE_BOTH to "كلاهما"
+        SettingsDataStore.DISPLAY_MODE_BOTH to "كلاهما",
+        SettingsDataStore.DISPLAY_MODE_VISUAL_REPLACE to "استبدال بصري"
     )
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(Glass700.copy(alpha = 0.4f))
             .border(1.dp, GlassBorder.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
             .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        options.forEach { (value, label) ->
-            val isSelected = value == selected
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(9.dp))
-                    .background(if (isSelected) Ember500 else androidx.compose.ui.graphics.Color.Transparent)
-                    .clickable { onSelected(value) }
-                    .padding(vertical = 10.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = if (isSelected) Ink900 else TextMuted,
-                    textAlign = TextAlign.Center
-                )
+        // First row: 3 options
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            options.take(3).forEach { (value, label) ->
+                val isSelected = value == selected
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(if (isSelected) Ember500 else androidx.compose.ui.graphics.Color.Transparent)
+                        .clickable { onSelected(value) }
+                        .padding(vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (isSelected) Ink900 else TextMuted,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
+        }
+        // Second row: visual replace option
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            options.drop(3).forEach { (value, label) ->
+                val isSelected = value == selected
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(if (isSelected) Ember500 else androidx.compose.ui.graphics.Color.Transparent)
+                        .clickable { onSelected(value) }
+                        .padding(vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (isSelected) Ink900 else TextMuted,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+            // Fill remaining space
+            Spacer(modifier = Modifier.weight(2f))
         }
     }
 }

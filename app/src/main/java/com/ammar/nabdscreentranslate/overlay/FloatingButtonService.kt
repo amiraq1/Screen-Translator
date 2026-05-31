@@ -294,11 +294,35 @@ class FloatingButtonService : Service() {
                                     displayMode == SettingsDataStore.DISPLAY_MODE_BOTH
                             val wantSheet = displayMode == SettingsDataStore.DISPLAY_MODE_SHEET ||
                                     displayMode == SettingsDataStore.DISPLAY_MODE_BOTH
+                            val wantVisualReplace = displayMode == SettingsDataStore.DISPLAY_MODE_VISUAL_REPLACE
 
                             // Determine if overflow exists (declutter mode may produce overflow)
                             val hasOverflow = inPlaceResult.overflowBlocks.isNotEmpty()
 
                             when {
+                                wantVisualReplace && inPlaceResult.hasPositions -> {
+                                    // Visual Replace mode: cover original text with translated text
+                                    Log.d(TAG, "VisualReplace mode enabled")
+                                    val allBlocks = inPlaceResult.blocks + inPlaceResult.overflowBlocks
+                                    translationOverlayManager?.showVisualReplaceTranslation(
+                                        blocks = allBlocks,
+                                        screenshotBitmap = bitmap!!,
+                                        onCopy = { },
+                                        onSave = saveAction,
+                                        onClose = closeAction
+                                    )
+                                }
+                                wantVisualReplace && !inPlaceResult.hasPositions -> {
+                                    // Visual Replace fallback: no bounding boxes, use bottom sheet
+                                    Log.d(TAG, "VisualReplace: fallback to sheet (no bounding boxes)")
+                                    val allBlocks = inPlaceResult.blocks + inPlaceResult.overflowBlocks
+                                    translationOverlayManager?.showBottomSheetTranslation(
+                                        blocks = allBlocks,
+                                        onCopy = { },
+                                        onSave = saveAction,
+                                        onClose = closeAction
+                                    )
+                                }
                                 inPlaceResult.hasPositions && wantOverlay -> {
                                     if (hasOverflow) {
                                         translationOverlayManager?.showInPlaceTranslationWithOverflow(
@@ -379,7 +403,9 @@ class FloatingButtonService : Service() {
                     translationOverlayManager?.showError(msg)
                 }
             } finally {
-                // Safely recycle bitmap
+                // Safely recycle bitmap (skip if visual replace mode is using it —
+                // the view samples colors in its init block synchronously, so by the
+                // time we reach here the sampling is already done)
                 try {
                     bitmap?.let { if (!it.isRecycled) it.recycle() }
                 } catch (e: Exception) {
